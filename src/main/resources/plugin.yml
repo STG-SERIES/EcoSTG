@@ -1,0 +1,41 @@
+name: EcoSTG-Paper
+version: ${version}
+main: com.ecostg.paper.EcoSTGPlugin
+api-version: '1.21'
+author: EcoSTG
+description: Lightweight Paper economy, auction house, and jobs plugin.
+commands:
+  pay:
+    description: Open the pay GUI
+    usage: /pay
+  shop:
+    description: Open the auction house
+    usage: /shop
+    aliases: [ah, auction]
+  sell:
+    description: Open the sell GUI
+    usage: /sell
+  ecostg:
+    description: EcoSTG admin commands
+    usage: /ecostg toggle <player> <on|off>
+    permission: ecostg.admin
+  moneytop:
+    description: View the richest players
+    usage: /moneytop
+  job:
+    description: Open the jobs GUI
+    usage: /job
+  jobsell:
+    description: Deliver job items
+    usage: /jobsell
+  job-timer-reset:
+    description: Reset a fired player's job cooldown
+    usage: /job-timer-reset <player>
+    permission: ecostg.admin
+permissions:
+  ecostg.admin:
+    description: Admin access for EcoSTG
+    default: op
+  ecostg.use:
+    description: Use EcoSTG economy features
+    default: true

@@ -1,0 +1,24 @@
+starting-balance: 500.0
+currency-name: Dollars
+currency-symbol: "$"
+
+auction:
+  # Percent taken from the seller on a successful sale (money sink)
+  sale-tax-percent: 5.0
+
+jobs:
+  # How many Minecraft days a worker has to deliver required items
+  deadline-ingame-days: 4
+  # Real-world days before a fired player can take a job again
+  fire-cooldown-real-days: 30
+  # Percent discount workers get when buying from the auction house
+  ah-buyer-discount-percent: 8.0
+  # Percent cheaper worker listings appear as (buyer pays less)
+  worker-listing-discount-percent: 5.0
+
+messages:
+  prefix: "<gray>[<green>EcoSTG</green>]</gray> "
+  economy-disabled: "<red>Your economy access is disabled.</red>"
+  insufficient-funds: "<red>You do not have enough Dollars.</red>"
+  player-not-found: "<red>Player not found.</red>"
+  invalid-amount: "<red>Invalid amount.</red>"

@@ -1,0 +1,49 @@
+jobs:
+  farmer:
+    display-name: Farmer
+    icon: WHEAT
+    description:
+      - "Grow and deliver crops for the town."
+      - "Keep farms stocked and earn AH perks."
+    required-material: WHEAT
+    required-amount: 64
+  miner:
+    display-name: Miner
+    icon: IRON_PICKAXE
+    description:
+      - "Dig deep and deliver raw ore."
+      - "Reliable workers keep the forges hot."
+    required-material: RAW_IRON
+    required-amount: 32
+  lumberjack:
+    display-name: Lumberjack
+    icon: OAK_LOG
+    description:
+      - "Fell trees and deliver solid oak."
+      - "Builders rely on a steady wood supply."
+    required-material: OAK_LOG
+    required-amount: 64
+  fisherman:
+    display-name: Fisherman
+    icon: FISHING_ROD
+    description:
+      - "Cast your line and deliver fresh catch."
+      - "Feed the docks with steady hauls."
+    required-material: COD
+    required-amount: 32
+  hunter:
+    display-name: Hunter
+    icon: BOW
+    description:
+      - "Hunt game and deliver cooked meat."
+      - "Keep the tavern kitchens stocked."
+    required-material: COOKED_BEEF
+    required-amount: 24
+  blacksmith:
+    display-name: Blacksmith
+    icon: ANVIL
+    description:
+      - "Smelt and deliver finished iron."
+      - "Armories need a reliable smith."
+    required-material: IRON_INGOT
+    required-amount: 16

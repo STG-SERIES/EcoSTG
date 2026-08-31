@@ -7,7 +7,9 @@ import com.ecostg.paper.util.Messages;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -15,7 +17,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
-import java.util.UUID;
 
 public final class GuiListener implements Listener {
 
@@ -25,44 +26,55 @@ public final class GuiListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    private GuiSession resolve(Inventory top) {
+        return plugin.guis().sessionFrom(top);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        GuiSession session = plugin.guis().session(player);
+        Inventory top = event.getView().getTopInventory();
+        GuiSession session = resolve(top);
         if (session == null) {
             return;
         }
 
         GuiType type = session.type();
         if (type == GuiType.SELL) {
-            handleSellClick(event, player, session);
+            handleSellClick(event, player, top);
             return;
         }
 
+        // Locked menus: never allow taking/moving GUI items
         event.setCancelled(true);
-        if (event.getClickedInventory() == null || event.getClickedInventory() != event.getView().getTopInventory()) {
+        if (event.getClick() == ClickType.NUMBER_KEY
+                || event.getClick() == ClickType.SWAP_OFFHAND
+                || event.getClick() == ClickType.DOUBLE_CLICK) {
+            return;
+        }
+        if (event.getClickedInventory() == null || event.getClickedInventory() != top) {
             return;
         }
 
         int slot = event.getRawSlot();
         switch (type) {
             case PAY_PLAYERS -> {
-                UUID target = session.get("slot:" + slot);
-                if (target != null) {
+                Object target = session.get("slot:" + slot);
+                if (target instanceof java.util.UUID uuid) {
                     player.closeInventory();
-                    plugin.chatInput().beginPayAmount(player, target);
+                    plugin.chatInput().beginPayAmount(player, uuid);
                 }
             }
             case AUCTION -> handleAuctionClick(player, session, slot);
             case AUCTION_CONFIRM -> handleConfirm(player, session, slot);
-            case MONEYTOP -> {
+            case MONEYTOP, ACTIVE_JOBS -> {
             }
             case JOBS -> {
-                String jobId = session.get("slot:" + slot);
-                if (jobId != null) {
-                    plugin.guis().openJobDetail(player, jobId);
+                Object jobId = session.get("slot:" + slot);
+                if (jobId instanceof String id) {
+                    plugin.guis().openJobDetail(player, id);
                 }
             }
             case JOB_DETAIL -> handleJobDetail(player, session, slot);
@@ -72,66 +84,67 @@ public final class GuiListener implements Listener {
         }
     }
 
-    private void handleSellClick(InventoryClickEvent event, Player player, GuiSession session) {
-        Inventory top = event.getView().getTopInventory();
+    private void handleSellClick(InventoryClickEvent event, Player player, Inventory top) {
         int raw = event.getRawSlot();
-        if (raw >= 45 && raw < 54) {
-            event.setCancelled(true);
-            if (raw == 49) {
-                sellContents(player, top);
-            }
-            return;
-        }
-        Bukkit.getScheduler().runTask(plugin, () -> plugin.guis().refreshSellEstimate(player, top));
-    }
+        int topSize = top.getSize();
 
-    private void sellContents(Player player, Inventory top) {
-        if (!plugin.economy().isEconomyEnabled(player.getUniqueId())) {
-            Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
+        // Only the center deposit slot is interactive for items
+        if (raw == 13) {
             return;
         }
-        double total = 0;
-        for (int i = 0; i < 45; i++) {
-            ItemStack stack = top.getItem(i);
-            if (stack == null || stack.getType().isAir()) {
-                continue;
+
+        // Block shift-clicks from player inv dumping into filler slots
+        if (event.getClickedInventory() != null
+                && event.getClickedInventory().equals(event.getView().getBottomInventory())
+                && event.isShiftClick()) {
+            event.setCancelled(true);
+            ItemStack current = event.getCurrentItem();
+            if (current != null && !current.getType().isAir()) {
+                ItemStack inSlot = top.getItem(13);
+                if (inSlot == null || inSlot.getType().isAir()) {
+                    top.setItem(13, current.clone());
+                    event.setCurrentItem(null);
+                }
             }
-            if (!plugin.worth().isSellable(stack.getType())) {
-                continue;
-            }
-            total += plugin.worth().valueOf(stack);
-            top.setItem(i, null);
-        }
-        if (total <= 0) {
-            Messages.send(plugin, player, "<red>No sellable items (check worth.yml).</red>");
-            plugin.guis().refreshSellEstimate(player, top);
             return;
         }
-        plugin.economy().deposit(player.getUniqueId(), total);
-        Messages.send(plugin, player, "<green>Sold items for " + Messages.money(plugin, total) + ".</green>");
-        plugin.logAction(player.getName() + " sold items for " + total);
-        player.closeInventory();
+
+        if (raw >= 0 && raw < topSize) {
+            event.setCancelled(true);
+            if (raw == 11) {
+                ItemStack item = top.getItem(13);
+                if (item == null || item.getType().isAir()) {
+                    Messages.send(plugin, player, "<red>Place an item in the middle slot first.</red>");
+                    return;
+                }
+                ItemStack toList = item.clone();
+                top.setItem(13, null);
+                player.closeInventory();
+                plugin.chatInput().beginSellListing(player, toList);
+            } else if (raw == 15) {
+                player.closeInventory();
+            }
+        }
     }
 
     private void handleAuctionClick(Player player, GuiSession session, int slot) {
         if (slot == 45) {
-            int page = session.get("page") == null ? 0 : (int) session.get("page");
+            int page = session.get("page") == null ? 0 : ((Number) session.get("page")).intValue();
             plugin.guis().openAuction(player, Math.max(0, page - 1));
             return;
         }
         if (slot == 53) {
-            int page = session.get("page") == null ? 0 : (int) session.get("page");
+            int page = session.get("page") == null ? 0 : ((Number) session.get("page")).intValue();
             plugin.guis().openAuction(player, page + 1);
             return;
         }
         if (slot == 49) {
-            player.closeInventory();
-            plugin.chatInput().beginAuctionPrice(player);
+            plugin.guis().openSell(player);
             return;
         }
-        Long listingId = session.get("slot:" + slot);
-        if (listingId != null) {
-            plugin.guis().openAuctionConfirm(player, listingId);
+        Object listingId = session.get("slot:" + slot);
+        if (listingId instanceof Number id) {
+            plugin.guis().openAuctionConfirm(player, id.longValue());
         }
     }
 
@@ -152,7 +165,6 @@ public final class GuiListener implements Listener {
             return;
         }
         if (listing.sellerUuid().equals(player.getUniqueId())) {
-            // cancel own listing
             if (plugin.auctions().deleteListing(listingId)) {
                 HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(listing.item());
                 overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
@@ -231,58 +243,62 @@ public final class GuiListener implements Listener {
                 plugin.guis().openJobs(player);
                 return;
             }
-            if (plugin.jobs().deliver(player)) {
-                Messages.send(plugin, player, "<green>Delivery complete! Deadline refreshed.</green>");
-                plugin.guis().openJobSell(player);
-            } else {
-                Messages.send(plugin, player, "<red>You do not have the required items.</red>");
+            if (!plugin.economy().isEconomyEnabled(player.getUniqueId())) {
+                Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
+                return;
             }
+            ItemStack taken = plugin.jobs().takeDeliveryItems(player);
+            if (taken == null) {
+                Messages.send(plugin, player, "<red>You do not have the required items.</red>");
+                return;
+            }
+            player.closeInventory();
+            plugin.chatInput().beginJobSellListing(player, taken);
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onDrag(InventoryDragEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) {
+        if (!(event.getWhoClicked() instanceof Player)) {
             return;
         }
-        GuiSession session = plugin.guis().session(player);
+        GuiSession session = resolve(event.getView().getTopInventory());
         if (session == null) {
             return;
         }
         if (session.type() == GuiType.SELL) {
-            boolean touchesBottomBar = event.getRawSlots().stream().anyMatch(s -> s >= 45 && s < 54);
-            if (touchesBottomBar) {
+            boolean onlyDeposit = event.getRawSlots().stream().allMatch(s -> s == 13
+                    || s >= event.getView().getTopInventory().getSize());
+            if (!onlyDeposit) {
                 event.setCancelled(true);
-            } else {
-                Bukkit.getScheduler().runTask(plugin, () ->
-                        plugin.guis().refreshSellEstimate(player, event.getView().getTopInventory()));
             }
             return;
         }
         event.setCancelled(true);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) {
             return;
         }
-        GuiSession session = plugin.guis().session(player);
-        if (session == null) {
+        if (!(event.getInventory().getHolder() instanceof EcoGuiHolder holder)) {
             return;
         }
+        GuiSession session = holder.session();
         if (session.type() == GuiType.SELL) {
-            Inventory top = event.getInventory();
-            for (int i = 0; i < 45; i++) {
-                ItemStack stack = top.getItem(i);
-                if (stack == null || stack.getType().isAir()) {
-                    continue;
-                }
+            ItemStack stack = event.getInventory().getItem(13);
+            if (stack != null && !stack.getType().isAir()) {
                 HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(stack);
                 overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-                top.setItem(i, null);
+                event.getInventory().setItem(13, null);
             }
         }
-        plugin.guis().clear(player);
+        // Defer clear so switching GUIs does not wipe the new session
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!(player.getOpenInventory().getTopInventory().getHolder() instanceof EcoGuiHolder)) {
+                plugin.guis().clear(player);
+            }
+        });
     }
 }

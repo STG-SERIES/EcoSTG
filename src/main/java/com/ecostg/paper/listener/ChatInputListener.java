@@ -11,6 +11,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +24,7 @@ public final class ChatInputListener implements Listener {
         AUCTION_PRICE
     }
 
-    private record Pending(Mode mode, UUID target, BiConsumer<Player, String> handler) {
+    private record Pending(Mode mode, UUID target, ItemStack item, BiConsumer<Player, String> handler) {
     }
 
     private final EcoSTGPlugin plugin;
@@ -33,12 +34,16 @@ public final class ChatInputListener implements Listener {
         this.plugin = plugin;
     }
 
-    public void await(Player player, Mode mode, UUID target, BiConsumer<Player, String> handler) {
-        pending.put(player.getUniqueId(), new Pending(mode, target, handler));
+    public void await(Player player, Mode mode, UUID target, ItemStack item, BiConsumer<Player, String> handler) {
+        pending.put(player.getUniqueId(), new Pending(mode, target, item, handler));
     }
 
     public void clear(Player player) {
-        pending.remove(player.getUniqueId());
+        Pending removed = pending.remove(player.getUniqueId());
+        if (removed != null && removed.item() != null) {
+            HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(removed.item());
+            overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -54,7 +59,7 @@ public final class ChatInputListener implements Listener {
     }
 
     public void beginPayAmount(Player payer, UUID target) {
-        await(payer, Mode.PAY_AMOUNT, target, (player, text) -> {
+        await(payer, Mode.PAY_AMOUNT, target, null, (player, text) -> {
             if (text.equalsIgnoreCase("cancel")) {
                 Messages.send(plugin, player, "<yellow>Payment cancelled.</yellow>");
                 return;
@@ -90,53 +95,104 @@ public final class ChatInputListener implements Listener {
         Messages.send(plugin, payer, "<yellow>Type the amount to pay (or 'cancel').</yellow>");
     }
 
-    public void beginAuctionPrice(Player seller) {
-        ItemStack hand = seller.getInventory().getItemInMainHand();
-        if (hand.getType().isAir()) {
-            Messages.send(plugin, seller, "<red>Hold the item you want to list.</red>");
-            return;
-        }
-        ItemStack toList = hand.clone();
-        await(seller, Mode.AUCTION_PRICE, null, (player, text) -> {
+    public void beginSellListing(Player seller, ItemStack toList) {
+        await(seller, Mode.AUCTION_PRICE, null, toList, (player, text) -> {
             if (text.equalsIgnoreCase("cancel")) {
-                Messages.send(plugin, player, "<yellow>Listing cancelled.</yellow>");
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                Messages.send(plugin, player, "<yellow>Listing cancelled. Item returned.</yellow>");
                 return;
             }
             double price;
             try {
-                price = Double.parseDouble(text);
+                price = Double.parseDouble(text.replace(",", "").replace("$", "").trim());
             } catch (NumberFormatException e) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
+                Messages.send(plugin, player, "<gray>Item returned. Use /sell to try again.</gray>");
                 return;
             }
             if (price <= 0) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
                 return;
             }
             if (!plugin.economy().isEconomyEnabled(player.getUniqueId())) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
                 return;
             }
-            ItemStack current = player.getInventory().getItemInMainHand();
-            if (!current.isSimilar(toList) || current.getAmount() < toList.getAmount()) {
-                Messages.send(plugin, player, "<red>Keep the same item in your hand to list it.</red>");
-                return;
-            }
-            ItemStack listed = current.clone();
-            current.setAmount(current.getAmount() - listed.getAmount());
-            if (current.getAmount() <= 0) {
-                player.getInventory().setItemInMainHand(null);
-            } else {
-                player.getInventory().setItemInMainHand(current);
-            }
-            boolean worker = plugin.jobs().isWorker(player.getUniqueId());
-            long id = plugin.auctions().createListing(player, listed, price, worker);
-            Messages.send(plugin, player, "<green>Listed item #" + id + " for " + Messages.money(plugin, price)
-                    + (worker ? " <aqua>(By a worker)</aqua>" : "") + ".</green>");
-            plugin.logAction(player.getName() + " listed AH#" + id + " for " + price
-                    + (worker ? " [worker]" : ""));
+            // Regular /sell never gets the worker badge — only /jobsell does
+            long id = plugin.auctions().createListing(player, toList, price, false);
+            Messages.send(plugin, player, "<green>Listed on AH #" + id + " for " + Messages.money(plugin, price) + ".</green>");
+            plugin.logAction(player.getName() + " listed AH#" + id + " for custom price " + price);
             plugin.guis().openAuction(player, 0);
         });
-        Messages.send(plugin, seller, "<yellow>Type the listing price (or 'cancel').</yellow>");
+        double suggest = plugin.worth().valueOf(toList);
+        if (suggest > 0) {
+            Messages.send(plugin, seller, "<yellow>Type your listing price (or 'cancel'). Suggested: "
+                    + Messages.money(plugin, suggest) + "</yellow>");
+        } else {
+            Messages.send(plugin, seller, "<yellow>Type your custom listing price (or 'cancel').</yellow>");
+        }
+    }
+
+    public void beginJobSellListing(Player seller, ItemStack toList) {
+        double discount = plugin.getConfig().getDouble("jobs.worker-listing-discount-percent", 5.0);
+        String discountText = Math.abs(discount - Math.rint(discount)) < 0.001
+                ? String.valueOf((int) Math.rint(discount))
+                : String.format(java.util.Locale.US, "%.1f", discount);
+        await(seller, Mode.AUCTION_PRICE, null, toList, (player, text) -> {
+            if (text.equalsIgnoreCase("cancel")) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                Messages.send(plugin, player, "<yellow>Job sell cancelled. Items returned. Deadline not refreshed.</yellow>");
+                return;
+            }
+            double price;
+            try {
+                price = Double.parseDouble(text.replace(",", "").replace("$", "").trim());
+            } catch (NumberFormatException e) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
+                Messages.send(plugin, player, "<gray>Items returned. Use /jobsell to try again.</gray>");
+                return;
+            }
+            if (price <= 0) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
+                return;
+            }
+            if (!plugin.economy().isEconomyEnabled(player.getUniqueId())) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
+                return;
+            }
+            if (!plugin.jobs().isWorker(player.getUniqueId())) {
+                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
+                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                Messages.send(plugin, player, "<red>You no longer have an active job.</red>");
+                return;
+            }
+            long id = plugin.auctions().createListing(player, toList, price, true);
+            plugin.jobs().refreshDeadline(player);
+            Messages.send(plugin, player, "<green>Job items listed on AH #" + id + " for "
+                    + Messages.money(plugin, price) + " <aqua>(By a worker — " + discountText + "% off)</aqua>.</green>");
+            Messages.send(plugin, player, "<green>Delivery complete! Deadline refreshed.</green>");
+            plugin.logAction(player.getName() + " jobsell-listed AH#" + id + " for " + price + " [worker]");
+            plugin.guis().openAuction(player, 0);
+        });
+        double suggest = plugin.worth().valueOf(toList);
+        Messages.send(plugin, seller, "<yellow>Type the AH price for your worker listing (or 'cancel').</yellow>");
+        Messages.send(plugin, seller, "<aqua>Badge: By a worker — " + discountText + "% discount for buyers.</aqua>");
+        if (suggest > 0) {
+            Messages.send(plugin, seller, "<gray>Suggested: " + Messages.money(plugin, suggest) + "</gray>");
+        }
     }
 }

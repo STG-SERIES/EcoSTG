@@ -50,6 +50,55 @@ public final class Database {
                           created_at INTEGER NOT NULL
                         )
                         """);
+                st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS homes (
+                          uuid TEXT NOT NULL,
+                          name TEXT NOT NULL,
+                          world TEXT NOT NULL,
+                          x REAL NOT NULL,
+                          y REAL NOT NULL,
+                          z REAL NOT NULL,
+                          yaw REAL NOT NULL,
+                          pitch REAL NOT NULL,
+                          PRIMARY KEY(uuid, name)
+                        )
+                        """);
+                st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS friends (
+                          uuid TEXT NOT NULL,
+                          friend_uuid TEXT NOT NULL,
+                          PRIMARY KEY(uuid, friend_uuid)
+                        )
+                        """);
+                st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS player_stats (
+                          uuid TEXT PRIMARY KEY,
+                          kills INTEGER NOT NULL DEFAULT 0,
+                          deaths INTEGER NOT NULL DEFAULT 0,
+                          playtime_ms INTEGER NOT NULL DEFAULT 0,
+                          blocks_placed INTEGER NOT NULL DEFAULT 0,
+                          blocks_broken INTEGER NOT NULL DEFAULT 0,
+                          mobs_killed INTEGER NOT NULL DEFAULT 0
+                        )
+                        """);
+                st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS player_settings (
+                          uuid TEXT PRIMARY KEY,
+                          chat_filter TEXT NOT NULL DEFAULT 'EVERYONE',
+                          notif_filter TEXT NOT NULL DEFAULT 'EVERYONE',
+                          night_vision INTEGER NOT NULL DEFAULT 0,
+                          money_nametag INTEGER NOT NULL DEFAULT 0,
+                          show_money INTEGER NOT NULL DEFAULT 1,
+                          show_kills INTEGER NOT NULL DEFAULT 1,
+                          show_deaths INTEGER NOT NULL DEFAULT 1,
+                          show_playtime INTEGER NOT NULL DEFAULT 1,
+                          show_job INTEGER NOT NULL DEFAULT 1,
+                          instant_tpa TEXT NOT NULL DEFAULT 'NOBODY',
+                          instant_tpahere TEXT NOT NULL DEFAULT 'NOBODY',
+                          auction_enabled INTEGER NOT NULL DEFAULT 1,
+                          jobs_enabled INTEGER NOT NULL DEFAULT 1
+                        )
+                        """);
             }
         } catch (ClassNotFoundException | SQLException e) {
             throw new IllegalStateException("Failed to open SQLite database", e);

@@ -2,6 +2,19 @@ starting-balance: 500.0
 currency-name: Dollars
 currency-symbol: "$"
 
+menu:
+  main-letters: "EcoSTG"
+
+homes:
+  max: 3
+
+rtp:
+  cooldown-seconds: 30
+  # Search distance from the player (clamped to the world border).
+  max-radius: 1500
+  min-radius: 32
+  max-attempts: 80
+
 auction:
   # Percent taken from the seller on a successful sale (money sink)
   sale-tax-percent: 5.0

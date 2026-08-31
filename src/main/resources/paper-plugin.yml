@@ -1,0 +1,14 @@
+name: EcoSTG-Paper
+version: ${version}
+main: com.ecostg.paper.EcoSTGPlugin
+bootstrapper: com.ecostg.paper.EcoSTGBootstrap
+api-version: '1.21'
+author: EcoSTG
+description: Lightweight Paper economy, auction house, jobs, and ESC menu hub.
+permissions:
+  ecostg.admin:
+    description: Admin access for EcoSTG
+    default: op
+  ecostg.use:
+    description: Use EcoSTG economy features
+    default: true

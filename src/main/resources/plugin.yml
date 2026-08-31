@@ -3,22 +3,75 @@ version: ${version}
 main: com.ecostg.paper.EcoSTGPlugin
 api-version: '1.21'
 author: EcoSTG
-description: Lightweight Paper economy, auction house, and jobs plugin.
+description: Lightweight Paper economy, auction house, jobs, and ESC menu hub.
 commands:
   pay:
-    description: Open the pay GUI
-    usage: /pay
+    description: Pay a player or open the pay menu
+    usage: /pay [player] [amount]
   shop:
     description: Open the auction house
     usage: /shop
     aliases: [ah, auction]
   sell:
-    description: Open the sell GUI
+    description: List an item on the auction house with a custom price
     usage: /sell
+  menu:
+    description: Open the EcoSTG hub menu
+    usage: /menu
+    aliases: [ecostgmenu]
+  tpa:
+    description: Request to teleport to a player
+    usage: /tpa [player]
+  tpahere:
+    description: Request a player to teleport to you
+    usage: /tpahere [player]
+    aliases: [tphere]
+  tpaccept:
+    description: Accept a pending teleport request
+    usage: /tpaccept
+    aliases: [tpyes]
+  tpdeny:
+    description: Deny a pending teleport request
+    usage: /tpdeny
+    aliases: [tpno]
+  rtp:
+    description: Random teleport in the current world
+    usage: /rtp
+  rtpq:
+    description: Teleport to a random online player
+    usage: /rtpq
+    aliases: [rtpqueue]
+  stats:
+    description: View your stats or another player's stats
+    usage: /stats [player]
+  home:
+    description: Open homes menu or teleport to a home
+    usage: /home [name]
+    aliases: [homes]
+  sethome:
+    description: Set a home at your location
+    usage: /sethome [name]
+  delhome:
+    description: Delete a home
+    usage: /delhome <name>
+  friend:
+    description: Follow players; you become friends when both follow
+    usage: /friend [add|remove|list] [player]
+    aliases: [friends]
+  settings:
+    description: Open EcoSTG settings
+    usage: /settings
+  leaderboard:
+    description: View leaderboards
+    usage: /leaderboard [money|playtime|kills|deaths|placed|broken|mobs]
+    aliases: [leaderboards, lb]
+  bal:
+    description: Show your balance or another player's
+    usage: /bal [player]
+    aliases: [balance, money]
   ecostg:
-    description: EcoSTG admin commands
-    usage: /ecostg toggle <player> <on|off>
-    permission: ecostg.admin
+    description: EcoSTG help and admin commands
+    usage: /ecostg [help|toggle|mainletters]
   moneytop:
     description: View the richest players
     usage: /moneytop
@@ -26,11 +79,30 @@ commands:
     description: Open the jobs GUI
     usage: /job
   jobsell:
-    description: Deliver job items
+    description: Sell required job items on the auction house (By a worker badge)
     usage: /jobsell
+  jobinfo:
+    description: Show your current job status in chat
+    usage: /jobinfo
   job-timer-reset:
     description: Reset a fired player's job cooldown
     usage: /job-timer-reset <player>
+    permission: ecostg.admin
+  ecoset:
+    description: Set a player's balance
+    usage: /ecoset <player> <amount>
+    permission: ecostg.admin
+  ecogive:
+    description: Give money to a player without taking from your balance
+    usage: /ecogive <player> <amount>
+    permission: ecostg.admin
+  jobcancel:
+    description: Cancel a player's active job
+    usage: /jobcancel <player>
+    permission: ecostg.admin
+  activejobs:
+    description: View all active jobs
+    usage: /activejobs
     permission: ecostg.admin
 permissions:
   ecostg.admin:

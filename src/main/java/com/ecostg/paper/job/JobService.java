@@ -191,17 +191,84 @@ public final class JobService {
         }
     }
 
-    public boolean deliver(Player player) {
-        PlayerJob job = getPlayerJob(player.getUniqueId());
+    /** Admin cancel: removes the job without applying the fired cooldown. */
+    public boolean cancelJob(UUID uuid) {
+        PlayerJob job = getPlayerJob(uuid);
         if (!job.hasJob()) {
             return false;
         }
+        try (PreparedStatement ps = database.connection().prepareStatement(
+                "UPDATE players SET job_id=NULL, job_start_day=NULL, job_deadline_day=NULL WHERE uuid=?")) {
+            ps.setString(1, uuid.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+        plugin.logAction(plugin.economy().getName(uuid) + " job cancelled (was " + job.jobId() + ")");
+        Player online = Bukkit.getPlayer(uuid);
+        if (online != null) {
+            Messages.send(plugin, online, "<yellow>Your job was cancelled by an admin.</yellow>");
+        }
+        return true;
+    }
+
+    public record ActiveJobEntry(UUID uuid, String name, String jobId, Long startDay, Long deadlineDay) {
+    }
+
+    public List<ActiveJobEntry> listActiveJobs() {
+        List<ActiveJobEntry> list = new ArrayList<>();
+        try (PreparedStatement ps = database.connection().prepareStatement(
+                "SELECT uuid, name, job_id, job_start_day, job_deadline_day FROM players WHERE job_id IS NOT NULL ORDER BY name COLLATE NOCASE");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                long start = rs.getLong(4);
+                boolean startNull = rs.wasNull();
+                long deadline = rs.getLong(5);
+                boolean deadlineNull = rs.wasNull();
+                list.add(new ActiveJobEntry(
+                        UUID.fromString(rs.getString(1)),
+                        rs.getString(2),
+                        rs.getString(3),
+                        startNull ? null : start,
+                        deadlineNull ? null : deadline
+                ));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+        return list;
+    }
+
+    public long daysUntilDeadline(PlayerJob job) {
+        if (job.deadlineDay() == null) {
+            return 0;
+        }
+        return Math.max(0, job.deadlineDay() - currentWorldDay());
+    }
+
+    /**
+     * Takes the required job items from the player without refreshing the deadline.
+     * Used by /jobsell so items can be listed on the AH with a worker badge.
+     */
+    public ItemStack takeDeliveryItems(Player player) {
+        PlayerJob job = getPlayerJob(player.getUniqueId());
+        if (!job.hasJob()) {
+            return null;
+        }
         JobDefinition def = jobs.get(job.jobId());
         if (def == null) {
-            return false;
+            return null;
         }
         if (!removeItems(player, def.requiredMaterial(), def.requiredAmount())) {
-            return false;
+            return null;
+        }
+        return new ItemStack(def.requiredMaterial(), def.requiredAmount());
+    }
+
+    public void refreshDeadline(Player player) {
+        PlayerJob job = getPlayerJob(player.getUniqueId());
+        if (!job.hasJob()) {
+            return;
         }
         int days = plugin.getConfig().getInt("jobs.deadline-ingame-days", 4);
         long day = currentWorldDay();
@@ -214,8 +281,17 @@ public final class JobService {
         } catch (SQLException e) {
             throw new IllegalStateException(e);
         }
-        plugin.logAction(player.getName() + " delivered job items for " + def.id()
-                + " (" + def.requiredAmount() + "x " + def.requiredMaterial() + ")");
+        plugin.logAction(player.getName() + " refreshed job deadline for " + job.jobId()
+                + " (deadline day " + (day + days) + ")");
+    }
+
+    @Deprecated
+    public boolean deliver(Player player) {
+        ItemStack taken = takeDeliveryItems(player);
+        if (taken == null) {
+            return false;
+        }
+        refreshDeadline(player);
         return true;
     }
 

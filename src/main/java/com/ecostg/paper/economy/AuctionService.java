@@ -10,12 +10,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public final class AuctionService {
 
     public record Listing(long id, UUID sellerUuid, String sellerName, double price,
-                          boolean workerListing, ItemStack item, long createdAt) {
+                          boolean workerListing, boolean instantPaid, ItemStack item, long createdAt) {
     }
 
     private final EcoSTGPlugin plugin;
@@ -29,16 +30,22 @@ public final class AuctionService {
     }
 
     public long createListing(Player seller, ItemStack item, double price, boolean workerListing) {
+        return createListing(seller, item, price, workerListing, false);
+    }
+
+    public long createListing(Player seller, ItemStack item, double price, boolean workerListing,
+                              boolean instantPaid) {
         byte[] bytes = item.serializeAsBytes();
         try (PreparedStatement ps = database.connection().prepareStatement(
-                "INSERT INTO auctions(seller_uuid, seller_name, price, worker_listing, item_bytes, created_at) VALUES(?,?,?,?,?,?)",
+                "INSERT INTO auctions(seller_uuid, seller_name, price, worker_listing, instant_paid, item_bytes, created_at) VALUES(?,?,?,?,?,?,?)",
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, seller.getUniqueId().toString());
             ps.setString(2, seller.getName());
             ps.setDouble(3, price);
             ps.setInt(4, workerListing ? 1 : 0);
-            ps.setBytes(5, bytes);
-            ps.setLong(6, System.currentTimeMillis());
+            ps.setInt(5, instantPaid ? 1 : 0);
+            ps.setBytes(6, bytes);
+            ps.setLong(7, System.currentTimeMillis());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {
@@ -53,7 +60,7 @@ public final class AuctionService {
 
     public Listing getListing(long id) {
         try (PreparedStatement ps = database.connection().prepareStatement(
-                "SELECT id, seller_uuid, seller_name, price, worker_listing, item_bytes, created_at FROM auctions WHERE id=?")) {
+                "SELECT id, seller_uuid, seller_name, price, worker_listing, instant_paid, item_bytes, created_at FROM auctions WHERE id=?")) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -67,20 +74,63 @@ public final class AuctionService {
     }
 
     public List<Listing> listAll(int offset, int limit) {
-        List<Listing> list = new ArrayList<>();
+        return listFiltered("", offset, limit);
+    }
+
+    public List<Listing> listFiltered(String rawQuery, int offset, int limit) {
+        String query = rawQuery == null ? "" : rawQuery.trim().toLowerCase(Locale.ROOT);
+        List<Listing> matched = new ArrayList<>();
         try (PreparedStatement ps = database.connection().prepareStatement(
-                "SELECT id, seller_uuid, seller_name, price, worker_listing, item_bytes, created_at FROM auctions ORDER BY id DESC LIMIT ? OFFSET ?")) {
-            ps.setInt(1, limit);
-            ps.setInt(2, offset);
+                "SELECT id, seller_uuid, seller_name, price, worker_listing, instant_paid, item_bytes, created_at FROM auctions ORDER BY id DESC")) {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    list.add(map(rs));
+                    Listing listing = map(rs);
+                    if (query.isEmpty() || matchesSearch(listing, query)) {
+                        matched.add(listing);
+                    }
                 }
             }
         } catch (SQLException e) {
             throw new IllegalStateException(e);
         }
-        return list;
+        if (offset >= matched.size()) {
+            return List.of();
+        }
+        int to = Math.min(matched.size(), offset + Math.max(0, limit));
+        return new ArrayList<>(matched.subList(Math.max(0, offset), to));
+    }
+
+    private boolean matchesSearch(Listing listing, String query) {
+        if (listing.sellerName() != null
+                && listing.sellerName().toLowerCase(Locale.ROOT).contains(query)) {
+            return true;
+        }
+        return matchesItemSearch(listing.item(), query);
+    }
+
+    private boolean matchesItemSearch(ItemStack item, String query) {
+        if (item == null || item.getType().isAir()) {
+            return false;
+        }
+        String material = item.getType().name().toLowerCase(Locale.ROOT);
+        String pretty = material.replace('_', ' ');
+        if (material.contains(query) || pretty.contains(query)) {
+            return true;
+        }
+        var meta = item.getItemMeta();
+        if (meta != null && meta.hasDisplayName()) {
+            String display = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(meta.displayName()).toLowerCase(Locale.ROOT);
+            if (display.contains(query)) {
+                return true;
+            }
+        }
+        for (ItemStack inner : plugin.worth().shulkerContents(item)) {
+            if (matchesItemSearch(inner, query)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int count() {
@@ -127,6 +177,7 @@ public final class AuctionService {
                 rs.getString("seller_name"),
                 rs.getDouble("price"),
                 rs.getInt("worker_listing") == 1,
+                rs.getInt("instant_paid") == 1,
                 item,
                 rs.getLong("created_at")
         );

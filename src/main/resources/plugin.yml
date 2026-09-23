@@ -3,17 +3,18 @@ version: ${version}
 main: com.ecostg.paper.EcoSTGPlugin
 api-version: '1.21'
 author: EcoSTG
-description: Lightweight Paper economy, auction house, jobs, and ESC menu hub.
+description: Lightweight Paper/Purpur economy, auction house, jobs, and ESC menu hub.
+softdepend: [GSit]
 commands:
   pay:
     description: Pay a player or open the pay menu
     usage: /pay [player] [amount]
   shop:
     description: Open the auction house
-    usage: /shop
+    usage: /shop [search]
     aliases: [ah, auction]
   sell:
-    description: List an item on the auction house with a custom price
+    description: Sell items instantly at worth.yml prices (also listed on AH)
     usage: /sell
   menu:
     description: Open the EcoSTG hub menu
@@ -61,6 +62,10 @@ commands:
   settings:
     description: Open EcoSTG settings
     usage: /settings
+  enderchest:
+    description: Open your ender chest from anywhere
+    usage: /enderchest
+    aliases: [ec, ender]
   leaderboard:
     description: View leaderboards
     usage: /leaderboard [money|playtime|kills|deaths|placed|broken|mobs]

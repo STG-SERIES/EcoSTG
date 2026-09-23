@@ -38,7 +38,7 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
         String name = resolveName(label);
         return switch (name) {
             case "pay" -> requirePlayer(sender, p -> handlePay(p, args));
-            case "shop", "ah", "auction" -> requirePlayer(sender, p -> plugin.guis().openAuction(p, 0));
+            case "shop", "ah", "auction" -> requirePlayer(sender, p -> handleAuction(p, args));
             case "sell" -> requirePlayer(sender, p -> plugin.guis().openSell(p));
             case "menu", "ecostgmenu" -> requirePlayer(sender, p -> plugin.menus().openMain(p));
             case "tpa" -> requirePlayer(sender, p -> handleTpa(p, args, TpaService.Type.TPA));
@@ -53,6 +53,7 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
             case "delhome" -> requirePlayer(sender, p -> handleDelHome(p, args));
             case "friend", "friends" -> requirePlayer(sender, p -> handleFriend(p, args));
             case "settings" -> requirePlayer(sender, p -> plugin.menus().openSettings(p));
+            case "enderchest", "ec", "ender" -> requirePlayer(sender, p -> plugin.menus().openEnderChest(p));
             case "leaderboard", "leaderboards", "lb" -> requirePlayer(sender, p -> handleLeaderboard(p, args));
             case "bal", "balance", "money" -> requirePlayer(sender, p -> handleBalance(p, args));
             case "moneytop" -> requirePlayer(sender, p -> plugin.guis().openMoneyTop(p));
@@ -137,6 +138,15 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
         plugin.tpa().request(player, target, type);
     }
 
+    private void handleAuction(Player player, String[] args) {
+        if (args.length == 0) {
+            plugin.guis().openAuction(player, 0);
+            return;
+        }
+        String search = String.join(" ", args).trim();
+        plugin.guis().openAuction(player, 0, search);
+    }
+
     private void handleStats(Player player, String[] args) {
         if (args.length == 0) {
             plugin.menus().openStatsView(player, player.getUniqueId(), player.getName());
@@ -155,22 +165,30 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
             plugin.menus().openHomes(player);
             return;
         }
-        String name = args[0];
-        if (plugin.homes().teleport(player, name)) {
-            Messages.send(plugin, player, "<green>Teleported to home '" + name.toLowerCase(Locale.ROOT) + "'.</green>");
+        String name = String.join(" ", args);
+        HomeService.Home home = plugin.homes().get(player.getUniqueId(), name);
+        if (home != null && plugin.homes().teleport(player, name)) {
+            Messages.send(plugin, player, "<green>Teleported to home '" + home.name() + "'.</green>");
         } else {
             Messages.send(plugin, player, "<red>No home named '" + name + "'.</red>");
         }
     }
 
     private void handleSetHome(Player player, String[] args) {
-        List<HomeService.Home> homes = plugin.homes().list(player.getUniqueId());
-        String name = args.length >= 1 ? args[0] : "home" + (homes.size() + 1);
+        String name = args.length == 0
+                ? plugin.homes().nextDefaultName(player.getUniqueId())
+                : String.join(" ", args);
         if (plugin.homes().setHome(player, name)) {
-            Messages.send(plugin, player, "<green>Home '" + name.toLowerCase(Locale.ROOT) + "' set.</green>");
+            HomeService.Home home = plugin.homes().get(player.getUniqueId(), name);
+            Messages.send(plugin, player, "<green>Home '" + (home == null ? name : home.name()) + "' set.</green>");
         } else {
-            Messages.send(plugin, player, "<red>Could not set home (max " + plugin.homes().maxHomes()
-                    + ", name letters/numbers/underscore up to 16).</red>");
+            int max = plugin.homes().maxHomes(player);
+            if (max == Integer.MAX_VALUE) {
+                Messages.send(plugin, player, "<red>Could not set home (name 1-32 letters/numbers/spaces).</red>");
+            } else {
+                Messages.send(plugin, player, "<red>Could not set home (max " + max
+                        + ", name 1-32 letters/numbers/spaces).</red>");
+            }
         }
     }
 
@@ -179,10 +197,12 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
             Messages.send(plugin, player, "<yellow>Usage: /delhome <name></yellow>");
             return;
         }
-        if (plugin.homes().deleteHome(player.getUniqueId(), args[0])) {
-            Messages.send(plugin, player, "<yellow>Deleted home '" + args[0] + "'.</yellow>");
+        String name = String.join(" ", args);
+        HomeService.Home home = plugin.homes().get(player.getUniqueId(), name);
+        if (home != null && plugin.homes().deleteHome(player.getUniqueId(), name)) {
+            Messages.send(plugin, player, "<yellow>Deleted home '" + home.name() + "'.</yellow>");
         } else {
-            Messages.send(plugin, player, "<red>No home named '" + args[0] + "'.</red>");
+            Messages.send(plugin, player, "<red>No home named '" + name + "'.</red>");
         }
     }
 
@@ -475,6 +495,7 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
         Messages.send(plugin, sender, "<yellow>Menu</yellow>");
         Messages.send(plugin, sender, "<white>/menu</white> <gray>— open hub (also ESC pause button)</gray>");
         Messages.send(plugin, sender, "<white>/settings</white> <gray>— privacy, chat, visuals</gray>");
+        Messages.send(plugin, sender, "<white>/enderchest</white> <gray>(/ec) — open your ender chest</gray>");
         Messages.send(plugin, sender, "");
         Messages.send(plugin, sender, "<yellow>Teleport</yellow>");
         Messages.send(plugin, sender, "<white>/tpa <player></white> <gray>·</gray> <white>/tpahere <player></white>");
@@ -489,7 +510,7 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
         Messages.send(plugin, sender, "");
         Messages.send(plugin, sender, "<yellow>Economy</yellow>");
         Messages.send(plugin, sender, "<white>/pay [player] [amount]</white> <gray>— GUI if you omit args</gray>");
-        Messages.send(plugin, sender, "<white>/bal [player]</white> <gray>·</gray> <white>/shop</white> <gray>(/ah) ·</gray> <white>/sell</white> <gray>·</gray> <white>/moneytop</white>");
+        Messages.send(plugin, sender, "<white>/bal [player]</white> <gray>·</gray> <white>/shop [search]</white> <gray>(/ah) ·</gray> <white>/sell</white> <gray>·</gray> <white>/moneytop</white>");
         Messages.send(plugin, sender, "");
         Messages.send(plugin, sender, "<yellow>Jobs</yellow>");
         Messages.send(plugin, sender, "<white>/job</white> <gray>— choose a job (one at a time)</gray>");

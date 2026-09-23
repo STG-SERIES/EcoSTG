@@ -25,6 +25,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * ESC pause-screen hub: opens the full button menu directly (no intermediate screen).
+ * Gamemode is OP-checked when clicked; {@link MenuHub#openMain} still hides it for non-ops on /menu.
+ */
 public final class EcoSTGBootstrap implements PluginBootstrap {
 
     public static final TypedKey<Dialog> PAUSE_DIALOG_KEY = DialogKeys.create(Key.key("ecostg:pause_menu"));
@@ -33,6 +37,7 @@ public final class EcoSTGBootstrap implements PluginBootstrap {
     @Override
     public void bootstrap(BootstrapContext context) {
         String title = loadMainLetters(context.getDataDirectory());
+        boolean gsitPresent = gsitJarPresent(context.getDataDirectory());
 
         context.getLifecycleManager().registerEventHandler(RegistryEvents.DIALOG.compose().newHandler(event ->
                 event.registry().register(PAUSE_DIALOG_KEY, builder -> builder
@@ -42,9 +47,9 @@ public final class EcoSTGBootstrap implements PluginBootstrap {
                                 .pause(false)
                                 .afterAction(DialogBase.DialogAfterAction.NONE)
                                 .body(List.of(DialogBody.plainMessage(
-                                        Component.text("Server hub menu"))))
+                                        Component.text("Server hub menu"), 300)))
                                 .build())
-                        .type(DialogType.multiAction(hubActions(),
+                        .type(DialogType.multiAction(hubActions(gsitPresent),
                                 hubBtn("Close", "Close menu", MenuHub.HUB_CLOSE), 2))
                 )));
 
@@ -57,11 +62,11 @@ public final class EcoSTGBootstrap implements PluginBootstrap {
         );
     }
 
-    private static List<ActionButton> hubActions() {
+    private static List<ActionButton> hubActions(boolean gsitPresent) {
         List<ActionButton> actions = new ArrayList<>();
         actions.add(hubBtn("Homes", "Set & teleport to homes", MenuHub.HUB_HOMES));
         actions.add(hubBtn("Auction", "Browse the auction house", MenuHub.HUB_AUCTION));
-        actions.add(hubBtn("Sell", "List an item for sale", MenuHub.HUB_SELL));
+        actions.add(hubBtn("Sell", "Sell items to the auction house", MenuHub.HUB_SELL));
         actions.add(hubBtn("Teleport", "TPA / TPAHere", MenuHub.HUB_TELEPORT));
         actions.add(hubBtn("Leaderboards", "Top players", MenuHub.HUB_LEADERBOARDS));
         actions.add(hubBtn("RTP", "Random teleport (cooldown)", MenuHub.HUB_RTP));
@@ -70,6 +75,11 @@ public final class EcoSTGBootstrap implements PluginBootstrap {
         actions.add(hubBtn("Pay", "Send money", MenuHub.HUB_PAY));
         actions.add(hubBtn("Stats", "View player stats", MenuHub.HUB_STATS));
         actions.add(hubBtn("Settings", "Privacy, chat, visuals", MenuHub.HUB_SETTINGS));
+        actions.add(hubBtn("Ender Chest", "Open your ender chest", MenuHub.HUB_ENDER_CHEST));
+        if (gsitPresent) {
+            actions.add(hubBtn("Sit/lay", "Sit, crawl, lay, or spin (GSit)", MenuHub.HUB_SIT_LAY));
+        }
+        actions.add(hubBtn("Gamemode", "Change your gamemode (OP)", MenuHub.HUB_GAMEMODE));
         return actions;
     }
 
@@ -78,6 +88,21 @@ public final class EcoSTGBootstrap implements PluginBootstrap {
                 .tooltip(Component.text(tooltip))
                 .action(DialogAction.customClick(key, null))
                 .build();
+    }
+
+    private static boolean gsitJarPresent(Path dataDirectory) {
+        Path pluginsDir = dataDirectory == null ? null : dataDirectory.getParent();
+        if (pluginsDir == null || !Files.isDirectory(pluginsDir)) {
+            return false;
+        }
+        try (var stream = Files.list(pluginsDir)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .map(path -> path.getFileName().toString().toLowerCase())
+                    .anyMatch(name -> name.endsWith(".jar") && name.contains("gsit"));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static String loadMainLetters(Path dataDirectory) {

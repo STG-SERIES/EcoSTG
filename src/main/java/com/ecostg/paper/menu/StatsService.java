@@ -191,8 +191,12 @@ public final class StatsService {
 
     public static String formatPlaytime(long ms) {
         long totalSec = Math.max(0, ms / 1000);
-        long hours = totalSec / 3600;
+        long days = totalSec / 86400;
+        long hours = (totalSec % 86400) / 3600;
         long minutes = (totalSec % 3600) / 60;
+        if (days > 0) {
+            return days + "d " + hours + "h";
+        }
         if (hours > 0) {
             return hours + "h " + minutes + "m";
         }

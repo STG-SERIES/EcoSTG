@@ -4,7 +4,13 @@ main: com.ecostg.paper.EcoSTGPlugin
 bootstrapper: com.ecostg.paper.EcoSTGBootstrap
 api-version: '1.21'
 author: EcoSTG
-description: Lightweight Paper economy, auction house, jobs, and ESC menu hub.
+description: Lightweight Paper/Purpur economy, auction house, jobs, and ESC menu hub.
+dependencies:
+  server:
+    GSit:
+      load: BEFORE
+      required: false
+      join-classpath: false
 permissions:
   ecostg.admin:
     description: Admin access for EcoSTG

@@ -116,6 +116,10 @@ public final class GuiManager {
     }
 
     public void openAuction(Player player, int page) {
+        openAuction(player, page, null);
+    }
+
+    public void openAuction(Player player, int page, String search) {
         if (!canUseEconomy(player)) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
             return;
@@ -124,11 +128,16 @@ public final class GuiManager {
             Messages.send(plugin, player, "<red>You disabled Auction/Sell in Settings.</red>");
             return;
         }
+        String query = search == null ? "" : search.trim();
         GuiSession session = new GuiSession(GuiType.AUCTION);
         session.put("page", page);
-        Inventory inv = create(session, 54, Messages.mm("<dark_aqua>Auction House"));
+        session.put("search", query);
+        String title = query.isEmpty()
+                ? "<dark_aqua>Auction House"
+                : "<dark_aqua>Auction House <gray>(" + query + ")";
+        Inventory inv = create(session, 54, Messages.mm(title));
         boolean worker = plugin.jobs().isWorker(player.getUniqueId());
-        List<AuctionService.Listing> listings = plugin.auctions().listAll(page * 45, 45);
+        List<AuctionService.Listing> listings = plugin.auctions().listFiltered(query, page * 45, 45);
         for (int i = 0; i < listings.size(); i++) {
             AuctionService.Listing listing = listings.get(i);
             ItemStack display = listing.item().clone();
@@ -138,6 +147,12 @@ public final class GuiManager {
             lore.add(Messages.mm("<gray>Seller: <white>" + listing.sellerName()));
             double price = plugin.auctions().buyerPrice(listing, worker);
             lore.add(Messages.mm("<gray>Price: <green>" + Messages.money(plugin, price)));
+            if (plugin.worth().hasShulkerContents(listing.item())) {
+                lore.add(Messages.mm("<aqua>Shulker contents included"));
+            }
+            if (listing.instantPaid()) {
+                lore.add(Messages.mm("<dark_gray>Seller already paid"));
+            }
             if (listing.workerListing()) {
                 double listingDiscount = plugin.getConfig().getDouble("jobs.worker-listing-discount-percent", 5.0);
                 lore.add(Messages.mm("<aqua>By a worker"));
@@ -156,9 +171,15 @@ public final class GuiManager {
             inv.setItem(i, display);
             session.put("slot:" + i, listing.id());
         }
+        if (listings.isEmpty()) {
+            String emptyMsg = query.isEmpty()
+                    ? "<red>No listings yet"
+                    : "<red>No results for <white>" + query;
+            inv.setItem(22, ItemUtil.named(Material.BARRIER, emptyMsg, List.of("<gray>Try /sell or another search")));
+        }
         inv.setItem(45, ItemUtil.named(Material.ARROW, "<yellow>Previous Page", List.of()));
-        inv.setItem(49, ItemUtil.named(Material.EMERALD, "<green>Sell an Item",
-                List.of("<gray>Opens /sell to list", "<gray>with your own price")));
+        inv.setItem(49, ItemUtil.named(Material.EMERALD, "<green>Sell",
+                List.of("<gray>List items at worth.yml prices", "<yellow>Opens /sell")));
         inv.setItem(53, ItemUtil.named(Material.ARROW, "<yellow>Next Page", List.of()));
         open(player, session, inv);
     }
@@ -198,7 +219,10 @@ public final class GuiManager {
         open(player, session, inv);
     }
 
-    /** Auction listing GUI: place an item and set a custom price. */
+    public static final int SELL_BUTTON_SLOT = 53;
+    public static final int SELL_ITEM_SLOTS = 53; // 0..52
+
+    /** List items on the AH: drop items in, click lime pane — prices from worth.yml (no custom prices). */
     public void openSell(Player player) {
         if (!canUseEconomy(player)) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
@@ -209,17 +233,108 @@ public final class GuiManager {
             return;
         }
         GuiSession session = new GuiSession(GuiType.SELL);
-        Inventory inv = create(session, 27, Messages.mm("<gold>List on Auction"));
-        for (int i = 0; i < 27; i++) {
-            inv.setItem(i, ItemUtil.filler());
-        }
-        inv.setItem(13, null);
-        inv.setItem(11, ItemUtil.named(Material.LIME_CONCRETE, "<green>Set Price & List",
-                List.of("<gray>Place your item in the middle",
-                        "<yellow>Then click here and type your price",
-                        "<gray>Example: 25.50")));
-        inv.setItem(15, ItemUtil.named(Material.RED_CONCRETE, "<red>Cancel", List.of("<gray>Close and return item")));
+        Inventory inv = create(session, 54, Messages.mm("<gold>Sell"));
+        refreshSellButton(inv);
         open(player, session, inv);
+    }
+
+    public void refreshSellGui(Inventory inv) {
+        if (inv == null) {
+            return;
+        }
+        for (int i = 0; i < SELL_ITEM_SLOTS; i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack == null || stack.getType().isAir()) {
+                continue;
+            }
+            plugin.worth().stripSellLore(stack);
+            plugin.worth().decorateSellLore(stack);
+            inv.setItem(i, stack);
+        }
+        refreshSellButton(inv);
+    }
+
+    public void refreshSellButton(Inventory inv) {
+        double total = 0;
+        int stacks = 0;
+        for (int i = 0; i < SELL_ITEM_SLOTS; i++) {
+            ItemStack stack = inv.getItem(i);
+            double value = plugin.worth().valueOf(stack);
+            if (value > 0) {
+                total += value;
+                stacks++;
+            }
+        }
+        List<String> lore = new ArrayList<>();
+        lore.add("<white>~ <green>$</green> " + Messages.compactNumber(total));
+        lore.add("<gray>" + stacks + " listing(s) at worth prices");
+        lore.add("<white>Click to sell — paid instantly");
+        lore.add("<gray>Items stay listed on the AH");
+        inv.setItem(SELL_BUTTON_SLOT, ItemUtil.named(Material.LIME_STAINED_GLASS_PANE,
+                "<green>Sell", lore));
+    }
+
+    public record SellResult(int listed, double paid) {
+    }
+
+    /**
+     * Pays the seller instantly at worth.yml prices, then lists each stack on the AH
+     * (prepaid — buyer purchase does not pay the seller again). Shulker box prices
+     * include contents. Unsellable stacks are returned to the player.
+     */
+    public SellResult sellContents(Player player, Inventory inv) {
+        int listed = 0;
+        double paid = 0;
+        List<ItemStack> kept = new ArrayList<>();
+        for (int i = 0; i < SELL_ITEM_SLOTS; i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack == null || stack.getType().isAir()) {
+                inv.setItem(i, null);
+                continue;
+            }
+            plugin.worth().stripSellLore(stack);
+            double price = plugin.worth().valueOf(stack);
+            if (price <= 0) {
+                kept.add(stack);
+                inv.setItem(i, null);
+                continue;
+            }
+            long id = plugin.auctions().createListing(player, stack, price, false, true);
+            if (id > 0) {
+                listed++;
+                paid += price;
+                plugin.economy().deposit(player.getUniqueId(), price);
+                plugin.logAction(player.getName() + " instant-sold AH#" + id + " for " + price);
+                inv.setItem(i, null);
+            } else {
+                kept.add(stack);
+                inv.setItem(i, null);
+            }
+        }
+        for (ItemStack leftover : kept) {
+            HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(leftover);
+            overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+        }
+        refreshSellButton(inv);
+        return new SellResult(listed, paid);
+    }
+
+    public void returnSellItems(Player player, Inventory inv) {
+        for (int i = 0; i < SELL_ITEM_SLOTS; i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack == null || stack.getType().isAir()) {
+                continue;
+            }
+            plugin.worth().stripSellLore(stack);
+            HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(stack);
+            overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+            inv.setItem(i, null);
+        }
+    }
+
+    @Deprecated
+    public void openAuctionList(Player player) {
+        openSell(player);
     }
 
     public void openJobs(Player player) {

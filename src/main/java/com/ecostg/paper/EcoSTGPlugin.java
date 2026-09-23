@@ -71,7 +71,7 @@ public final class EcoSTGPlugin extends JavaPlugin {
         EcoCommands commands = new EcoCommands(this);
         registerPaperCommand("pay", "Pay a player", List.of(), commands);
         registerPaperCommand("shop", "Open the auction house", List.of("ah", "auction"), commands);
-        registerPaperCommand("sell", "List an item on the auction house", List.of(), commands);
+        registerPaperCommand("sell", "List items on the AH at worth prices", List.of(), commands);
         registerPaperCommand("menu", "Open the EcoSTG hub menu", List.of("ecostgmenu"), commands);
         registerPaperCommand("tpa", "Request to teleport to a player", List.of(), commands);
         registerPaperCommand("tpahere", "Request a player to teleport to you", List.of("tphere"), commands);
@@ -85,6 +85,7 @@ public final class EcoSTGPlugin extends JavaPlugin {
         registerPaperCommand("delhome", "Delete a home", List.of(), commands);
         registerPaperCommand("friend", "Follow players; friends when both follow", List.of("friends"), commands);
         registerPaperCommand("settings", "Open EcoSTG settings", List.of(), commands);
+        registerPaperCommand("enderchest", "Open your ender chest", List.of("ec", "ender"), commands);
         registerPaperCommand("leaderboard", "View leaderboards", List.of("leaderboards", "lb"), commands);
         registerPaperCommand("bal", "Show a player's balance", List.of("balance", "money"), commands);
         registerPaperCommand("ecostg", "EcoSTG help and admin commands", List.of(), commands);

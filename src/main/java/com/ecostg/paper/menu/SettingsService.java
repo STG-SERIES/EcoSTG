@@ -2,12 +2,17 @@ package com.ecostg.paper.menu;
 
 import com.ecostg.paper.EcoSTGPlugin;
 import com.ecostg.paper.economy.Database;
+import com.ecostg.paper.util.Messages;
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
@@ -112,33 +117,30 @@ public final class SettingsService {
 
     public void applyMoneyNametag(Player player, boolean enabled) {
         Scoreboard board = plugin.getServer().getScoreboardManager().getMainScoreboard();
-        String teamName = teamName(player.getUniqueId());
-        Team team = board.getTeam(teamName);
+        // Legacy team suffix leaked into chat, tab, and console — always strip it.
+        Team team = board.getTeam(teamName(player.getUniqueId()));
+        if (team != null) {
+            team.unregister();
+        }
+
+        Objective obj = board.getObjective("ecostg_bal");
         if (!enabled) {
-            if (team != null) {
-                team.removeEntry(player.getName());
-                if (team.getEntries().isEmpty()) {
-                    team.unregister();
-                }
+            if (obj != null) {
+                obj.getScore(player.getName()).resetScore();
             }
             return;
         }
-        if (team == null) {
-            team = board.registerNewTeam(teamName);
-        }
-        if (!team.hasEntry(player.getName())) {
-            team.addEntry(player.getName());
-        }
-        double bal = plugin.economy().getBalance(player.getUniqueId());
-        String symbol = plugin.getConfig().getString("currency-symbol", "$");
-        team.suffix(net.kyori.adventure.text.Component.text(" " + symbol + formatMoney(bal)));
-        Objective obj = board.getObjective("ecostg_bal");
         if (obj == null) {
-            obj = board.registerNewObjective("ecostg_bal", Criteria.DUMMY,
-                    net.kyori.adventure.text.Component.text(symbol));
-            obj.setDisplaySlot(DisplaySlot.BELOW_NAME);
+            obj = board.registerNewObjective("ecostg_bal", Criteria.DUMMY, Component.empty());
         }
-        obj.getScore(player.getName()).setScore((int) Math.min(Integer.MAX_VALUE, Math.max(0, Math.round(bal))));
+        obj.displayName(Component.empty());
+        obj.setDisplaySlot(DisplaySlot.BELOW_NAME);
+
+        double bal = plugin.economy().getBalance(player.getUniqueId());
+        Score score = obj.getScore(player.getName());
+        score.setScore(1);
+        score.numberFormat(NumberFormat.fixed(
+                Component.text(Messages.compactMoney(plugin, bal)).color(NamedTextColor.GREEN)));
     }
 
     public void refreshMoneyNametag(Player player) {
@@ -153,18 +155,51 @@ public final class SettingsService {
         applyMoneyNametag(player, false);
     }
 
+    public String getDescription(UUID uuid) {
+        ensure(uuid);
+        try (PreparedStatement ps = database.connection().prepareStatement(
+                "SELECT profile_description FROM player_settings WHERE uuid=?")) {
+            ps.setString(1, uuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return "";
+                }
+                String raw = rs.getString(1);
+                return raw == null ? "" : raw;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public void setDescription(UUID uuid, String description) {
+        ensure(uuid);
+        String cleaned = sanitizeDescription(description);
+        try (PreparedStatement ps = database.connection().prepareStatement(
+                "UPDATE player_settings SET profile_description=? WHERE uuid=?")) {
+            ps.setString(1, cleaned);
+            ps.setString(2, uuid.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public static final int DESCRIPTION_MAX = 120;
+
+    public static String sanitizeDescription(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String cleaned = raw.replace('\0', ' ').replace('§', ' ').strip();
+        if (cleaned.length() > DESCRIPTION_MAX) {
+            cleaned = cleaned.substring(0, DESCRIPTION_MAX);
+        }
+        return cleaned;
+    }
+
     private static String teamName(UUID uuid) {
         String raw = TEAM_PREFIX + uuid.toString().replace("-", "");
         return raw.substring(0, Math.min(16, raw.length()));
-    }
-
-    private static String formatMoney(double amount) {
-        if (amount >= 1_000_000) {
-            return String.format(java.util.Locale.US, "%.1fM", amount / 1_000_000.0);
-        }
-        if (amount >= 1_000) {
-            return String.format(java.util.Locale.US, "%.1fK", amount / 1_000.0);
-        }
-        return String.format(java.util.Locale.US, "%.0f", amount);
     }
 }

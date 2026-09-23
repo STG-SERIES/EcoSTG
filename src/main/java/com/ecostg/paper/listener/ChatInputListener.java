@@ -110,7 +110,7 @@ public final class ChatInputListener implements Listener {
                 HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
                 overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
-                Messages.send(plugin, player, "<gray>Item returned. Use /sell to try again.</gray>");
+                Messages.send(plugin, player, "<gray>Item returned. Use the Auction menu to list again.</gray>");
                 return;
             }
             if (price <= 0) {

@@ -26,9 +26,45 @@ public final class Messages {
         sender.sendMessage(mm(prefix + miniMessage));
     }
 
+    /** Always compact: {@code $ 2.5K}, {@code $ 1.2M}, etc. */
     public static String money(EcoSTGPlugin plugin, double amount) {
+        return compactMoney(plugin, amount);
+    }
+
+    public static String compactMoney(EcoSTGPlugin plugin, double amount) {
         String symbol = plugin.getConfig().getString("currency-symbol", "$");
-        String name = plugin.getConfig().getString("currency-name", "Dollars");
-        return symbol + String.format(java.util.Locale.US, "%.2f", amount) + " " + name;
+        return symbol + " " + compactNumber(amount);
+    }
+
+    /**
+     * Compact number with K / M / B / T suffixes.
+     * Examples: 950 → {@code 950}, 2500 → {@code 2.5K}, 1_500_000 → {@code 1.5M}
+     */
+    public static String compactNumber(double amount) {
+        double abs = Math.abs(amount);
+        String sign = amount < 0 ? "-" : "";
+        if (abs >= 1_000_000_000_000L) {
+            return sign + trimCompact(abs / 1_000_000_000_000.0) + "T";
+        }
+        if (abs >= 1_000_000_000L) {
+            return sign + trimCompact(abs / 1_000_000_000.0) + "B";
+        }
+        if (abs >= 1_000_000L) {
+            return sign + trimCompact(abs / 1_000_000.0) + "M";
+        }
+        if (abs >= 1_000L) {
+            return sign + trimCompact(abs / 1_000.0) + "K";
+        }
+        if (Math.abs(abs - Math.rint(abs)) < 0.001) {
+            return sign + String.valueOf((long) Math.rint(abs));
+        }
+        return sign + String.format(java.util.Locale.US, "%.2f", abs);
+    }
+
+    private static String trimCompact(double value) {
+        if (Math.abs(value - Math.rint(value)) < 0.05) {
+            return String.valueOf((long) Math.rint(value));
+        }
+        return String.format(java.util.Locale.US, "%.1f", value);
     }
 }

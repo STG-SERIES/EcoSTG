@@ -4,6 +4,10 @@ Each EcoSTG version has its own notes in this folder.
 
 | Version | Notes |
 |---------|--------|
+| 1.5.17 | [1.5.17.md](1.5.17.md) — fix sell/AH items not stacking |
+| 1.5.16 | [1.5.16.md](1.5.16.md) — homes: all listed; Color as tap button |
+| 1.5.15 | [1.5.15.md](1.5.15.md) — remove rtpq; Settings last; tap-cycle settings; Bio |
+| 1.5.14 | [1.5.14.md](1.5.14.md) — action-bar notices (no EcoSTG chat prefix) |
 | 1.5.13 | [1.5.13.md](1.5.13.md) — instant /sell pay + shulker contents |
 | 1.5.12 | [1.5.12.md](1.5.12.md) — compact K/M prices + donut.auction worth retune |
 | 1.5.11 | [1.5.11.md](1.5.11.md) — AH sell button + /ah search |

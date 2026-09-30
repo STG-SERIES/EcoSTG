@@ -16,6 +16,7 @@ public record PlayerSettings(
         boolean jobsEnabled
 ) {
     public enum Filter {
+        NOBODY,
         FRIENDS,
         EVERYONE;
 
@@ -23,11 +24,27 @@ public record PlayerSettings(
             if (raw == null) {
                 return EVERYONE;
             }
-            String v = raw.trim().toUpperCase();
-            if (v.equals("FRIENDS") || v.equals("FRIEND")) {
-                return FRIENDS;
-            }
-            return EVERYONE;
+            return switch (raw.trim().toUpperCase()) {
+                case "FRIENDS", "FRIEND" -> FRIENDS;
+                case "NOBODY", "NONE", "NOONE", "NO_ONE", "OFF" -> NOBODY;
+                default -> EVERYONE;
+            };
+        }
+
+        public Filter next() {
+            return switch (this) {
+                case NOBODY -> FRIENDS;
+                case FRIENDS -> EVERYONE;
+                case EVERYONE -> NOBODY;
+            };
+        }
+
+        public String pretty() {
+            return switch (this) {
+                case NOBODY -> "Noone";
+                case FRIENDS -> "Friends";
+                case EVERYONE -> "Everyone";
+            };
         }
     }
 
@@ -44,6 +61,22 @@ public record PlayerSettings(
                 case "ANYONE", "EVERYONE", "ALL" -> ANYONE;
                 case "FRIENDS", "FRIEND" -> FRIENDS;
                 default -> NOBODY;
+            };
+        }
+
+        public InstantAllow next() {
+            return switch (this) {
+                case NOBODY -> FRIENDS;
+                case FRIENDS -> ANYONE;
+                case ANYONE -> NOBODY;
+            };
+        }
+
+        public String pretty() {
+            return switch (this) {
+                case NOBODY -> "Noone";
+                case FRIENDS -> "Friends";
+                case ANYONE -> "Everyone";
             };
         }
     }

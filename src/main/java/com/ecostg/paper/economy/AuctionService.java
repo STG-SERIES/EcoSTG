@@ -35,7 +35,11 @@ public final class AuctionService {
 
     public long createListing(Player seller, ItemStack item, double price, boolean workerListing,
                               boolean instantPaid) {
-        byte[] bytes = item.serializeAsBytes();
+        ItemStack clean = plugin.worth().undecoratedClone(item);
+        if (clean == null || clean.getType().isAir()) {
+            return -1;
+        }
+        byte[] bytes = clean.serializeAsBytes();
         try (PreparedStatement ps = database.connection().prepareStatement(
                 "INSERT INTO auctions(seller_uuid, seller_name, price, worker_listing, instant_paid, item_bytes, created_at) VALUES(?,?,?,?,?,?,?)",
                 Statement.RETURN_GENERATED_KEYS)) {
@@ -171,6 +175,7 @@ public final class AuctionService {
 
     private Listing map(ResultSet rs) throws SQLException {
         ItemStack item = ItemStack.deserializeBytes(rs.getBytes("item_bytes"));
+        plugin.worth().stripSellLore(item);
         return new Listing(
                 rs.getLong("id"),
                 UUID.fromString(rs.getString("seller_uuid")),

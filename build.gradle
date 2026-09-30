@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.ecostg'
-version = '1.5.13'
+version = '1.5.17'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21

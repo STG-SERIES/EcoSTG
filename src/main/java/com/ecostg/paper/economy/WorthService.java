@@ -454,11 +454,9 @@ public final class WorthService {
         if (stack == null || stack.getType().isAir()) {
             return;
         }
+        stripSellLore(stack);
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) {
-            return;
-        }
-        if (meta.getPersistentDataContainer().has(decoratedKey, PersistentDataType.BYTE)) {
             return;
         }
         List<Component> lore = meta.lore() == null ? new ArrayList<>() : new ArrayList<>(meta.lore());
@@ -477,24 +475,56 @@ public final class WorthService {
         stack.setItemMeta(meta);
     }
 
+    /**
+     * Removes temporary sell-GUI worth lore / PDC so items stack with normal copies again.
+     * Also cleans older contaminated stacks that lost the PDC marker but kept the lore.
+     */
     public void stripSellLore(ItemStack stack) {
         if (stack == null || stack.getType().isAir() || !stack.hasItemMeta()) {
             return;
         }
         ItemMeta meta = stack.getItemMeta();
-        if (meta == null || !meta.getPersistentDataContainer().has(decoratedKey, PersistentDataType.BYTE)) {
+        if (meta == null) {
             return;
         }
-        Integer originalSize = meta.getPersistentDataContainer().get(loreSizeKey, PersistentDataType.INTEGER);
-        List<Component> lore = meta.lore();
-        if (lore != null && originalSize != null && originalSize >= 0 && lore.size() > originalSize) {
-            meta.lore(new ArrayList<>(lore.subList(0, originalSize)));
-        } else if (lore != null && originalSize != null && originalSize == 0) {
-            meta.lore(null);
+        var pdc = meta.getPersistentDataContainer();
+        boolean marked = pdc.has(decoratedKey, PersistentDataType.BYTE);
+        Integer originalSize = pdc.get(loreSizeKey, PersistentDataType.INTEGER);
+        List<Component> lore = meta.lore() == null ? null : new ArrayList<>(meta.lore());
+
+        if (marked && originalSize != null && lore != null) {
+            if (originalSize <= 0) {
+                lore = null;
+            } else if (lore.size() > originalSize) {
+                lore = new ArrayList<>(lore.subList(0, originalSize));
+            }
+        } else if (lore != null) {
+            lore = stripTrailingWorthLines(lore);
         }
-        meta.getPersistentDataContainer().remove(decoratedKey);
-        meta.getPersistentDataContainer().remove(loreSizeKey);
+
+        pdc.remove(decoratedKey);
+        pdc.remove(loreSizeKey);
+        if (lore == null || lore.isEmpty()) {
+            meta.lore(null);
+        } else {
+            meta.lore(lore);
+        }
         stack.setItemMeta(meta);
+    }
+
+    private static List<Component> stripTrailingWorthLines(List<Component> lore) {
+        List<Component> cleaned = new ArrayList<>(lore);
+        var plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText();
+        while (!cleaned.isEmpty()) {
+            String line = plain.serialize(cleaned.get(cleaned.size() - 1)).trim();
+            if (line.startsWith("~") || line.equalsIgnoreCase("Unsellable")
+                    || line.equalsIgnoreCase("Includes shulker contents")) {
+                cleaned.remove(cleaned.size() - 1);
+                continue;
+            }
+            break;
+        }
+        return cleaned.isEmpty() ? null : cleaned;
     }
 
     public ItemStack undecoratedClone(ItemStack stack) {
@@ -504,5 +534,20 @@ public final class WorthService {
         ItemStack clone = stack.clone();
         stripSellLore(clone);
         return clone;
+    }
+
+    /** Strips sell-worth decoration from the cursor and every inventory slot. */
+    public void stripPlayerInventory(org.bukkit.entity.Player player) {
+        if (player == null) {
+            return;
+        }
+        stripSellLore(player.getItemOnCursor());
+        for (ItemStack stack : player.getInventory().getContents()) {
+            stripSellLore(stack);
+        }
+        for (ItemStack stack : player.getInventory().getArmorContents()) {
+            stripSellLore(stack);
+        }
+        stripSellLore(player.getInventory().getItemInOffHand());
     }
 }

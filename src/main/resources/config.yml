@@ -30,7 +30,7 @@ jobs:
   worker-listing-discount-percent: 5.0
 
 messages:
-  prefix: "<gray>[<green>EcoSTG</green>]</gray> "
+  # Notices use the action bar (above hotbar); no chat prefix / branding.
   economy-disabled: "<red>Your economy access is disabled.</red>"
   insufficient-funds: "<red>You do not have enough Dollars.</red>"
   player-not-found: "<red>Player not found.</red>"

@@ -46,7 +46,6 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
             case "tpaccept", "tpyes" -> requirePlayer(sender, p -> plugin.tpa().accept(p));
             case "tpdeny", "tpno" -> requirePlayer(sender, p -> plugin.tpa().deny(p));
             case "rtp" -> requirePlayer(sender, p -> plugin.rtp().rtp(p));
-            case "rtpq", "rtpqueue" -> requirePlayer(sender, p -> plugin.rtp().rtpQueue(p));
             case "stats" -> requirePlayer(sender, p -> handleStats(p, args));
             case "home", "homes" -> requirePlayer(sender, p -> handleHome(p, args));
             case "sethome" -> requirePlayer(sender, p -> handleSetHome(p, args));
@@ -78,25 +77,37 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
         plugin.economy().ensurePlayer(player);
         JobService.PlayerJob job = plugin.jobs().getPlayerJob(player.getUniqueId());
         if (!job.hasJob()) {
-            Messages.send(plugin, player, "<yellow>You do not have an active job.</yellow>");
             if (plugin.jobs().isOnCooldown(player.getUniqueId())) {
                 long days = java.util.concurrent.TimeUnit.MILLISECONDS
                         .toDays(plugin.jobs().cooldownRemainingMs(player.getUniqueId())) + 1;
-                Messages.send(plugin, player, "<gray>Fired cooldown: about <white>" + days + "</white> day(s) left.</gray>");
+                Messages.send(plugin, player, "<yellow>No active job.</yellow> <gray>Cooldown: ~"
+                        + days + " day(s).</gray>");
+            } else {
+                Messages.send(plugin, player, "<yellow>You do not have an active job.</yellow>");
             }
             return;
         }
         JobDefinition def = plugin.jobs().get(job.jobId());
         String jobName = def == null ? job.jobId() : def.displayName();
         long daysLeft = plugin.jobs().daysUntilDeadline(job);
-        Messages.send(plugin, player, "<green>Job:</green> <white>" + jobName + "</white>");
+        StringBuilder line = new StringBuilder("<green>")
+                .append(jobName)
+                .append("</green> <gray>·</gray> <white>")
+                .append(daysLeft)
+                .append("d</white> <gray>left</gray>");
         if (def != null) {
-            Messages.send(plugin, player, "<green>Delivery:</green> <white>"
-                    + def.requiredAmount() + "x " + GuiPretty.pretty(def.requiredMaterial()) + "</white>");
+            line.append(" <gray>·</gray> <white>")
+                    .append(def.requiredAmount())
+                    .append("x ")
+                    .append(GuiPretty.pretty(def.requiredMaterial()))
+                    .append("</white>");
         }
-        Messages.send(plugin, player, "<green>Days until delivery due:</green> <white>" + daysLeft + "</white>");
-        Messages.send(plugin, player, "<green>Deadline world day:</green> <white>" + job.deadlineDay()
-                + "</white> <gray>(current: " + plugin.jobs().currentWorldDay() + ")</gray>");
+        line.append(" <dark_gray>(day ")
+                .append(job.deadlineDay())
+                .append("/")
+                .append(plugin.jobs().currentWorldDay())
+                .append(")</dark_gray>");
+        Messages.send(plugin, player, line.toString());
     }
 
     private void handlePay(Player player, String[] args) {
@@ -255,9 +266,10 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
             Messages.send(plugin, player, "<yellow>No follows yet. /friend add <player> to follow someone.</yellow>");
             return;
         }
-        Messages.send(plugin, player, "<green>Friends:</green> <white>" + joinFriendNames(friends) + "</white>");
-        Messages.send(plugin, player, "<gray>Following:</gray> <white>" + joinFriendNames(following) + "</white>");
-        Messages.send(plugin, player, "<gray>Followers:</gray> <white>" + joinFriendNames(followers) + "</white>");
+        Messages.send(plugin, player,
+                "<green>Friends:</green> <white>" + joinFriendNames(friends)
+                        + "</white> <gray>| Following:</gray> <white>" + joinFriendNames(following)
+                        + "</white> <gray>| Followers:</gray> <white>" + joinFriendNames(followers) + "</white>");
     }
 
     private static String joinFriendNames(List<FriendService.FriendEntry> entries) {
@@ -489,49 +501,50 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
         int fireCooldown = plugin.getConfig().getInt("jobs.fire-cooldown-real-days", 30);
         String start = Messages.money(plugin, plugin.getConfig().getDouble("starting-balance", 500.0));
 
-        Messages.send(plugin, sender, "<gold><bold>EcoSTG Paper — Help</bold></gold>");
-        Messages.send(plugin, sender, "<gray>Currency: Dollars · New players start with " + start + "</gray>");
-        Messages.send(plugin, sender, "");
-        Messages.send(plugin, sender, "<yellow>Menu</yellow>");
-        Messages.send(plugin, sender, "<white>/menu</white> <gray>— open hub (also ESC pause button)</gray>");
-        Messages.send(plugin, sender, "<white>/settings</white> <gray>— privacy, chat, visuals</gray>");
-        Messages.send(plugin, sender, "<white>/enderchest</white> <gray>(/ec) — open your ender chest</gray>");
-        Messages.send(plugin, sender, "");
-        Messages.send(plugin, sender, "<yellow>Teleport</yellow>");
-        Messages.send(plugin, sender, "<white>/tpa <player></white> <gray>·</gray> <white>/tpahere <player></white>");
-        Messages.send(plugin, sender, "<white>/tpaccept</white> <gray>·</gray> <white>/tpdeny</white>");
-        Messages.send(plugin, sender, "<white>/rtp</white> <gray>— random teleport</gray> <white>/rtpq</white> <gray>— random player</gray>");
-        Messages.send(plugin, sender, "<white>/home [name]</white> <gray>·</gray> <white>/sethome [name]</white> <gray>·</gray> <white>/delhome <name></white>");
-        Messages.send(plugin, sender, "");
-        Messages.send(plugin, sender, "<yellow>Players</yellow>");
-        Messages.send(plugin, sender, "<white>/stats [player]</white>");
-        Messages.send(plugin, sender, "<white>/friend add|remove|list</white> <gray>— follow; friends when both follow</gray>");
-        Messages.send(plugin, sender, "<white>/leaderboard [money|playtime|kills|...]</white> <gray>(/lb)</gray>");
-        Messages.send(plugin, sender, "");
-        Messages.send(plugin, sender, "<yellow>Economy</yellow>");
-        Messages.send(plugin, sender, "<white>/pay [player] [amount]</white> <gray>— GUI if you omit args</gray>");
-        Messages.send(plugin, sender, "<white>/bal [player]</white> <gray>·</gray> <white>/shop [search]</white> <gray>(/ah) ·</gray> <white>/sell</white> <gray>·</gray> <white>/moneytop</white>");
-        Messages.send(plugin, sender, "");
-        Messages.send(plugin, sender, "<yellow>Jobs</yellow>");
-        Messages.send(plugin, sender, "<white>/job</white> <gray>— choose a job (one at a time)</gray>");
-        Messages.send(plugin, sender, "<white>/jobsell</white> <gray>— sell required job items on the AH</gray>");
-        Messages.send(plugin, sender, "<gray>  Those listings get <aqua>By a worker</aqua> and "
+        // Multi-line reference stays in chat (action bar can only show one line).
+        Messages.chat(plugin, sender, "<gold><bold>Help</bold></gold>");
+        Messages.chat(plugin, sender, "<gray>Currency: Dollars · New players start with " + start + "</gray>");
+        Messages.chat(plugin, sender, "");
+        Messages.chat(plugin, sender, "<yellow>Menu</yellow>");
+        Messages.chat(plugin, sender, "<white>/menu</white> <gray>— open hub (also ESC pause button)</gray>");
+        Messages.chat(plugin, sender, "<white>/settings</white> <gray>— privacy, chat, visuals</gray>");
+        Messages.chat(plugin, sender, "<white>/enderchest</white> <gray>(/ec) — open your ender chest</gray>");
+        Messages.chat(plugin, sender, "");
+        Messages.chat(plugin, sender, "<yellow>Teleport</yellow>");
+        Messages.chat(plugin, sender, "<white>/tpa <player></white> <gray>·</gray> <white>/tpahere <player></white>");
+        Messages.chat(plugin, sender, "<white>/tpaccept</white> <gray>·</gray> <white>/tpdeny</white>");
+        Messages.chat(plugin, sender, "<white>/rtp</white> <gray>— random teleport</gray>");
+        Messages.chat(plugin, sender, "<white>/home [name]</white> <gray>·</gray> <white>/sethome [name]</white> <gray>·</gray> <white>/delhome <name></white>");
+        Messages.chat(plugin, sender, "");
+        Messages.chat(plugin, sender, "<yellow>Players</yellow>");
+        Messages.chat(plugin, sender, "<white>/stats [player]</white>");
+        Messages.chat(plugin, sender, "<white>/friend add|remove|list</white> <gray>— follow; friends when both follow</gray>");
+        Messages.chat(plugin, sender, "<white>/leaderboard [money|playtime|kills|...]</white> <gray>(/lb)</gray>");
+        Messages.chat(plugin, sender, "");
+        Messages.chat(plugin, sender, "<yellow>Economy</yellow>");
+        Messages.chat(plugin, sender, "<white>/pay [player] [amount]</white> <gray>— GUI if you omit args</gray>");
+        Messages.chat(plugin, sender, "<white>/bal [player]</white> <gray>·</gray> <white>/shop [search]</white> <gray>(/ah) ·</gray> <white>/sell</white> <gray>·</gray> <white>/moneytop</white>");
+        Messages.chat(plugin, sender, "");
+        Messages.chat(plugin, sender, "<yellow>Jobs</yellow>");
+        Messages.chat(plugin, sender, "<white>/job</white> <gray>— choose a job (one at a time)</gray>");
+        Messages.chat(plugin, sender, "<white>/jobsell</white> <gray>— sell required job items on the AH</gray>");
+        Messages.chat(plugin, sender, "<gray>  Those listings get <aqua>By a worker</aqua> and "
                 + formatPct(workerListing) + "% off for buyers.</gray>");
-        Messages.send(plugin, sender, "<gray>  Workers also get " + formatPct(workerBuyer)
+        Messages.chat(plugin, sender, "<gray>  Workers also get " + formatPct(workerBuyer)
                 + "% off when buying from the AH.</gray>");
-        Messages.send(plugin, sender, "<white>/jobinfo</white> <gray>— your job status & days until delivery is due</gray>");
-        Messages.send(plugin, sender, "<gray>Deliver every <white>" + deadlineDays
+        Messages.chat(plugin, sender, "<white>/jobinfo</white> <gray>— your job status & days until delivery is due</gray>");
+        Messages.chat(plugin, sender, "<gray>Deliver every <white>" + deadlineDays
                 + "</white> in-game days or you are fired (" + fireCooldown + " real days cooldown).</gray>");
         if (sender.hasPermission("ecostg.admin")) {
-            Messages.send(plugin, sender, "");
-            Messages.send(plugin, sender, "<red>Admin</red>");
-            Messages.send(plugin, sender, "<white>/ecostg toggle <player> <on|off></white>");
-            Messages.send(plugin, sender, "<white>/ecostg mainletters change <name></white>");
-            Messages.send(plugin, sender, "<white>/ecoset</white> <gray>·</gray> <white>/ecogive</white> <gray>·</gray> <white>/jobcancel</white>");
-            Messages.send(plugin, sender, "<white>/activejobs</white> <gray>·</gray> <white>/job-timer-reset</white>");
+            Messages.chat(plugin, sender, "");
+            Messages.chat(plugin, sender, "<red>Admin</red>");
+            Messages.chat(plugin, sender, "<white>/ecostg toggle <player> <on|off></white>");
+            Messages.chat(plugin, sender, "<white>/ecostg mainletters change <name></white>");
+            Messages.chat(plugin, sender, "<white>/ecoset</white> <gray>·</gray> <white>/ecogive</white> <gray>·</gray> <white>/jobcancel</white>");
+            Messages.chat(plugin, sender, "<white>/activejobs</white> <gray>·</gray> <white>/job-timer-reset</white>");
         }
-        Messages.send(plugin, sender, "");
-        Messages.send(plugin, sender, "<dark_gray>Tip: /ecostg help</dark_gray>");
+        Messages.chat(plugin, sender, "");
+        Messages.chat(plugin, sender, "<dark_gray>Tip: /ecostg help</dark_gray>");
     }
 
     private static String formatPct(double value) {

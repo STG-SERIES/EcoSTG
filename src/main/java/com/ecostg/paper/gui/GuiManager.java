@@ -312,9 +312,14 @@ public final class GuiManager {
             }
         }
         for (ItemStack leftover : kept) {
+            plugin.worth().stripSellLore(leftover);
             HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(leftover);
-            overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+            overflow.values().forEach(item -> {
+                plugin.worth().stripSellLore(item);
+                player.getWorld().dropItemNaturally(player.getLocation(), item);
+            });
         }
+        plugin.worth().stripPlayerInventory(player);
         refreshSellButton(inv);
         return new SellResult(listed, paid);
     }

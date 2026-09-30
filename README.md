@@ -2,8 +2,8 @@
 
 Lightweight [Paper](https://papermc.io/) / [Purpur](https://purpurmc.org/) **1.21.11** plugin: economy, auction house, jobs, and an ESC hub menu (Dialog API).
 
-**Current version:** `1.5.13`  
-**Output jar:** `build/libs/EcoSTG-1.5.13.jar`
+**Current version:** `1.5.17`  
+**Output jar:** `build/libs/EcoSTG-1.5.17.jar`
 
 Release notes for each version: [`releases/`](releases/).
 
@@ -26,7 +26,7 @@ Release notes for each version: [`releases/`](releases/).
 ### Jobs
 - `/job` — choose one job
 - `/jobsell` — sell required job items **on the AH** with badge **By a worker** + discount `%` (visible to everyone)
-- `/jobinfo` — chat status (days until delivery due)
+- `/jobinfo` — job status above the hotbar (days until delivery due)
 - Miss the in-game-day deadline → fired + real-day cooldown
 - `/jobcancel` `/activejobs` `/job-timer-reset` — OP
 
@@ -45,7 +45,7 @@ Existing homes are kept across updates. Old item-icon values fall back to the de
 ### ESC / hub menu
 Tapping the pause-screen button (default label **EcoSTG**) opens the hub directly. Same menu via `/menu` (`/ecostgmenu`).
 
-Hub: Homes, Auction, Sell, Teleport, Leaderboards, RTP, RTP Queue, Friends, Pay, Stats, Settings, Ender Chest, Gamemode (OP).
+Hub: Homes, Auction, Sell, Teleport, Leaderboards, RTP, Friends, Pay, Stats, Ender Chest, Sit/lay (if GSit), Gamemode (OP), **Settings** (last).
 
 Every hub feature also has a chat command.
 
@@ -56,14 +56,13 @@ Every hub feature also has a chat command.
 | Teleport | TPA / TPAHere (`/tpa`, `/tpahere`). Target must accept unless privacy allows instant |
 | Leaderboards | Money, playtime, kills, deaths, blocks, mobs (`/leaderboard`) |
 | RTP | Random safe spot in the **current world**, near you, inside the world border (`/rtp`, cooldown) |
-| RTP Queue | Teleport to a random online player (`/rtpq`, no cooldown) |
 | Friends | Follow someone; friends when both follow (`/friend`). Filter, search, and open a player profile |
 | Pay | Pay online players (`/pay`) |
 | Stats | Player stats preview; respects privacy (`/stats`) |
-| Settings | Chat, notifications, visuals, privacy, profile description, general toggles (`/settings`) |
 | Ender Chest | Open your ender chest from anywhere (`/enderchest`, `/ec`) |
 | Sit/lay | Shown only if [GSit](https://modrinth.com/plugin/gsit) is installed |
 | Gamemode | OP only: Survival / Creative / Adventure / Spectator |
+| Settings | Tap-cycle privacy/chat/notifications, bio, visuals (`/settings`) — always last |
 
 `/ecostg mainletters change <name>` — OP. Live menus update immediately; the ESC button label needs a **server restart**.
 
@@ -89,7 +88,6 @@ Important actions are logged as `[ACTION]` in the server console.
 | `/tpa [player]` `/tpahere [player]` (`/tphere`) | Everyone | Teleport requests |
 | `/tpaccept` (`/tpyes`) `/tpdeny` (`/tpno`) | Everyone | Accept / deny TPA |
 | `/rtp` | Everyone | Random teleport (cooldown) |
-| `/rtpq` (`/rtpqueue`) | Everyone | Teleport to a random player |
 | `/home [name]` (`/homes`) `/sethome [name]` `/delhome <name>` | Everyone | Homes |
 | `/stats [player]` | Everyone | Stats (respects privacy) |
 | `/friend add\|remove\|list [player]` (`/friends`) | Everyone | Follow; friends when both follow |
@@ -120,7 +118,7 @@ $env:JAVA_HOME = "$env:USERPROFILE\jdk-21\jdk-21.0.12.1+1"
 
 ## Install
 
-1. Put `EcoSTG-1.5.13.jar` in `plugins/`
+1. Put `EcoSTG-1.5.17.jar` in `plugins/`
 2. Start once to generate `config.yml`, `worth.yml`, `jobs.yml`, and `ecostg.db`
 3. Edit configs, then **restart** (prefer restart over `/reload` for Paper/Purpur plugins)
 

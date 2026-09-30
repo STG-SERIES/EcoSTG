@@ -41,9 +41,17 @@ public final class ChatInputListener implements Listener {
     public void clear(Player player) {
         Pending removed = pending.remove(player.getUniqueId());
         if (removed != null && removed.item() != null) {
-            HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(removed.item());
-            overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+            giveClean(player, removed.item());
         }
+    }
+
+    private void giveClean(Player player, ItemStack raw) {
+        ItemStack clean = plugin.worth().undecoratedClone(raw);
+        if (clean == null || clean.getType().isAir()) {
+            return;
+        }
+        HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(clean);
+        overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -98,8 +106,7 @@ public final class ChatInputListener implements Listener {
     public void beginSellListing(Player seller, ItemStack toList) {
         await(seller, Mode.AUCTION_PRICE, null, toList, (player, text) -> {
             if (text.equalsIgnoreCase("cancel")) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                giveClean(player, toList);
                 Messages.send(plugin, player, "<yellow>Listing cancelled. Item returned.</yellow>");
                 return;
             }
@@ -107,21 +114,18 @@ public final class ChatInputListener implements Listener {
             try {
                 price = Double.parseDouble(text.replace(",", "").replace("$", "").trim());
             } catch (NumberFormatException e) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
-                Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
-                Messages.send(plugin, player, "<gray>Item returned. Use the Auction menu to list again.</gray>");
+                giveClean(player, toList);
+                Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount",
+                        "<red>Invalid amount.</red>") + " <gray>Item returned.</gray>");
                 return;
             }
             if (price <= 0) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                giveClean(player, toList);
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
                 return;
             }
             if (!plugin.economy().isEconomyEnabled(player.getUniqueId())) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                giveClean(player, toList);
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
                 return;
             }
@@ -147,8 +151,7 @@ public final class ChatInputListener implements Listener {
                 : String.format(java.util.Locale.US, "%.1f", discount);
         await(seller, Mode.AUCTION_PRICE, null, toList, (player, text) -> {
             if (text.equalsIgnoreCase("cancel")) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                giveClean(player, toList);
                 Messages.send(plugin, player, "<yellow>Job sell cancelled. Items returned. Deadline not refreshed.</yellow>");
                 return;
             }
@@ -156,43 +159,39 @@ public final class ChatInputListener implements Listener {
             try {
                 price = Double.parseDouble(text.replace(",", "").replace("$", "").trim());
             } catch (NumberFormatException e) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
-                Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
-                Messages.send(plugin, player, "<gray>Items returned. Use /jobsell to try again.</gray>");
+                giveClean(player, toList);
+                Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount",
+                        "<red>Invalid amount.</red>") + " <gray>Items returned.</gray>");
                 return;
             }
             if (price <= 0) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                giveClean(player, toList);
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.invalid-amount", "<red>Invalid amount.</red>"));
                 return;
             }
             if (!plugin.economy().isEconomyEnabled(player.getUniqueId())) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                giveClean(player, toList);
                 Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
                 return;
             }
             if (!plugin.jobs().isWorker(player.getUniqueId())) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(toList);
-                overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+                giveClean(player, toList);
                 Messages.send(plugin, player, "<red>You no longer have an active job.</red>");
                 return;
             }
             long id = plugin.auctions().createListing(player, toList, price, true);
             plugin.jobs().refreshDeadline(player);
-            Messages.send(plugin, player, "<green>Job items listed on AH #" + id + " for "
-                    + Messages.money(plugin, price) + " <aqua>(By a worker — " + discountText + "% off)</aqua>.</green>");
-            Messages.send(plugin, player, "<green>Delivery complete! Deadline refreshed.</green>");
+            Messages.send(plugin, player, "<green>Job AH #" + id + " for "
+                    + Messages.money(plugin, price) + " — delivery done, deadline refreshed.</green>");
             plugin.logAction(player.getName() + " jobsell-listed AH#" + id + " for " + price + " [worker]");
             plugin.guis().openAuction(player, 0);
         });
         double suggest = plugin.worth().valueOf(toList);
-        Messages.send(plugin, seller, "<yellow>Type the AH price for your worker listing (or 'cancel').</yellow>");
-        Messages.send(plugin, seller, "<aqua>Badge: By a worker — " + discountText + "% discount for buyers.</aqua>");
+        String prompt = "<yellow>Type AH price (or 'cancel').</yellow> <aqua>Worker −"
+                + discountText + "%</aqua>";
         if (suggest > 0) {
-            Messages.send(plugin, seller, "<gray>Suggested: " + Messages.money(plugin, suggest) + "</gray>");
+            prompt += " <gray>Suggested: " + Messages.money(plugin, suggest) + "</gray>";
         }
+        Messages.send(plugin, seller, prompt);
     }
 }

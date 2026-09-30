@@ -11,8 +11,6 @@ import org.bukkit.WorldBorder;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -85,35 +83,6 @@ public final class RtpService {
             Location origin = player.getLocation();
             tryAttempt(uuid, origin.getWorld().getUID(), origin.getBlockX(), origin.getBlockZ(), token, 0);
         }, null);
-        return true;
-    }
-
-    public boolean rtpQueue(Player player) {
-        List<Player> others = new ArrayList<>();
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            if (!online.getUniqueId().equals(player.getUniqueId())) {
-                others.add(online);
-            }
-        }
-        if (others.isEmpty()) {
-            Messages.send(plugin, player, "<red>No other players online.</red>");
-            return false;
-        }
-        Player target = others.get(ThreadLocalRandom.current().nextInt(others.size()));
-        Location dest = target.getLocation().clone();
-        String targetName = target.getName();
-        player.teleportAsync(dest).thenAccept(ok -> {
-            Player now = Bukkit.getPlayer(player.getUniqueId());
-            if (now == null) {
-                return;
-            }
-            if (!Boolean.TRUE.equals(ok)) {
-                Messages.send(plugin, now, "<red>RTP Queue teleport failed.</red>");
-                return;
-            }
-            Messages.send(plugin, now, "<green>Teleported to " + targetName + ".</green>");
-            plugin.logAction(now.getName() + " used RTP Queue to " + targetName);
-        });
         return true;
     }
 

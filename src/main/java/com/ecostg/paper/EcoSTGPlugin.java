@@ -78,7 +78,6 @@ public final class EcoSTGPlugin extends JavaPlugin {
         registerPaperCommand("tpaccept", "Accept a teleport request", List.of("tpyes"), commands);
         registerPaperCommand("tpdeny", "Deny a teleport request", List.of("tpno"), commands);
         registerPaperCommand("rtp", "Random teleport in this world", List.of(), commands);
-        registerPaperCommand("rtpq", "Teleport to a random online player", List.of("rtpqueue"), commands);
         registerPaperCommand("stats", "View player stats", List.of(), commands);
         registerPaperCommand("home", "Open homes or teleport to a home", List.of("homes"), commands);
         registerPaperCommand("sethome", "Set a home at your location", List.of(), commands);

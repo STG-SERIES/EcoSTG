@@ -44,7 +44,6 @@ public final class MenuHub {
     public static final Key HUB_TELEPORT = Key.key("ecostg:hub_teleport");
     public static final Key HUB_LEADERBOARDS = Key.key("ecostg:hub_leaderboards");
     public static final Key HUB_RTP = Key.key("ecostg:hub_rtp");
-    public static final Key HUB_RTP_QUEUE = Key.key("ecostg:hub_rtp_queue");
     public static final Key HUB_FRIENDS = Key.key("ecostg:hub_friends");
     public static final Key HUB_PAY = Key.key("ecostg:hub_pay");
     public static final Key HUB_STATS = Key.key("ecostg:hub_stats");
@@ -59,7 +58,6 @@ public final class MenuHub {
     private static final int BTN_WIDTH = 150;
     private static final int WIDE_BUTTON = 300;
     private static final int BODY_WIDTH = 300;
-    private static final int HOMES_PER_PAGE = 4;
 
     private enum FriendFilter {
         ALL, FRIENDS, FOLLOWING, ONLINE
@@ -67,7 +65,6 @@ public final class MenuHub {
 
     private final EcoSTGPlugin plugin;
     private final Map<UUID, FriendFilter> friendFilters = new ConcurrentHashMap<>();
-    private final Map<UUID, Integer> homesPage = new ConcurrentHashMap<>();
     private ServerLinks.ServerLink menuLink;
 
     public MenuHub(EcoSTGPlugin plugin) {
@@ -116,17 +113,9 @@ public final class MenuHub {
                 openMain(p);
             }
         }));
-        actions.add(btn("RTP Queue", "Teleport to a random player", p -> {
-            if (plugin.rtp().rtpQueue(p)) {
-                p.closeDialog();
-            } else {
-                openMain(p);
-            }
-        }));
         actions.add(btn("Friends", "Follow players; friends when both follow", this::openFriends));
         actions.add(btn("Pay", "Send money", this::openPayPlayers));
         actions.add(btn("Stats", "View player stats", this::openStatsPlayers));
-        actions.add(btn("Settings", "Privacy, chat, visuals", this::openSettings));
         actions.add(btn("Ender Chest", "Open your ender chest", this::openEnderChest));
         if (isGsitEnabled()) {
             actions.add(btn("Sit/lay", "Sit, crawl, lay, or spin (GSit)", this::openSitLay));
@@ -134,6 +123,7 @@ public final class MenuHub {
         if (player.isOp()) {
             actions.add(btn("Gamemode", "Change your gamemode (OP)", this::openGamemode));
         }
+        actions.add(btn("Settings", "Privacy, chat, visuals, bio", this::openSettings));
 
         show(player, mainLetters(), "Server hub menu", actions, 2, null);
     }
@@ -154,12 +144,6 @@ public final class MenuHub {
             openLeaderboards(player);
         } else if (key.equals(HUB_RTP)) {
             if (plugin.rtp().rtp(player)) {
-                player.closeDialog();
-            } else {
-                openMain(player);
-            }
-        } else if (key.equals(HUB_RTP_QUEUE)) {
-            if (plugin.rtp().rtpQueue(player)) {
                 player.closeDialog();
             } else {
                 openMain(player);
@@ -188,24 +172,9 @@ public final class MenuHub {
     // --- Homes ---
 
     public void openHomes(Player player) {
-        homesPage.put(player.getUniqueId(), 0);
-        openHomesPage(player);
-    }
-
-    private void openHomesPage(Player player) {
         List<HomeService.Home> homes = plugin.homes().list(player.getUniqueId());
-        int page = homesPage.getOrDefault(player.getUniqueId(), 0);
-        int pages = Math.max(1, (int) Math.ceil(homes.size() / (double) HOMES_PER_PAGE));
-        if (page >= pages) {
-            page = 0;
-            homesPage.put(player.getUniqueId(), 0);
-        }
-        int from = page * HOMES_PER_PAGE;
-        int to = Math.min(homes.size(), from + HOMES_PER_PAGE);
-
         List<ActionButton> actions = new ArrayList<>();
-        for (int i = from; i < to; i++) {
-            HomeService.Home home = homes.get(i);
+        for (HomeService.Home home : homes) {
             String name = home.name();
             actions.add(btn(Component.text(name, home.textColor()), "Open " + name,
                     p -> openHomeDetail(p, name)));
@@ -220,20 +189,12 @@ public final class MenuHub {
                     openHomeDetail(p, next);
                 } else {
                     Messages.send(plugin, p, "<red>Could not set home (max " + pMax + ").</red>");
-                    openHomesPage(p);
+                    openHomes(p);
                 }
             }));
         }
-        if (homes.size() > HOMES_PER_PAGE) {
-            int nextPage = page;
-            actions.add(btn("Show More", "More homes", p -> {
-                homesPage.put(p.getUniqueId(), (nextPage + 1) % Math.max(1,
-                        (int) Math.ceil(plugin.homes().list(p.getUniqueId()).size() / (double) HOMES_PER_PAGE)));
-                openHomesPage(p);
-            }));
-        }
         if (actions.isEmpty()) {
-            actions.add(btn("No homes", "Use New Home to set one", this::openHomesPage));
+            actions.add(btn("No homes", "Use New Home to set one", this::openHomes));
         }
         show(player, Component.text("Homes"), List.of(), actions, 2, this::openMain);
     }
@@ -241,7 +202,7 @@ public final class MenuHub {
     public void openHomeDetail(Player player, String homeName) {
         HomeService.Home home = plugin.homes().get(player.getUniqueId(), homeName);
         if (home == null) {
-            openHomesPage(player);
+            openHomes(player);
             return;
         }
         String name = home.name();
@@ -251,25 +212,27 @@ public final class MenuHub {
                 Messages.send(plugin, p, "<green>Teleported to home '" + name + "'.</green>");
                 p.closeDialog();
             } else {
-                openHomesPage(p);
+                openHomes(p);
             }
         }));
-        actions.add(btn("Change Color", "Preset or custom HEX", p -> openHomeColorPicker(p, name)));
+        actions.add(btn(Component.object(ObjectContents.sprite(
+                        Key.key("minecraft:items"),
+                        Key.key("minecraft:item/ender_pearl"))),
+                "Change color (" + HomeService.presetLabel(home.colorHex()) + ")",
+                p -> openHomeColorPicker(p, name)));
         actions.add(btn("Rename", "Change this home's name", p -> openHomeRename(p, name)));
         actions.add(btn(Component.text("Delete", NamedTextColor.RED), "Remove this home", p -> {
             plugin.homes().deleteHome(p.getUniqueId(), name);
             Messages.send(plugin, p, "<yellow>Deleted home '" + name + "'.</yellow>");
-            openHomesPage(p);
+            openHomes(p);
         }));
-        show(player, Component.text(name, home.textColor()), List.of(
-                textBody(Component.text("Color: " + HomeService.presetLabel(home.colorHex()), home.textColor()))
-        ), actions, 2, this::openHomesPage);
+        show(player, Component.text(name, home.textColor()), List.of(), actions, 2, this::openHomes);
     }
 
     private void openHomeRename(Player player, String homeName) {
         HomeService.Home home = plugin.homes().get(player.getUniqueId(), homeName);
         if (home == null) {
-            openHomesPage(player);
+            openHomes(player);
             return;
         }
         String current = home.name();
@@ -304,7 +267,7 @@ public final class MenuHub {
     private void openHomeColorPicker(Player player, String homeName) {
         HomeService.Home home = plugin.homes().get(player.getUniqueId(), homeName);
         if (home == null) {
-            openHomesPage(player);
+            openHomes(player);
             return;
         }
         String name = home.name();
@@ -560,19 +523,19 @@ public final class MenuHub {
 
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(textBody(withHeadIcon(target, targetName)));
-        String description = plugin.settings().getDescription(target);
-        if (!description.isBlank()) {
-            bodies.add(textBody(Component.text(description, NamedTextColor.GRAY)));
+        String bio = plugin.settings().getBio(target);
+        if (!bio.isBlank()) {
+            bodies.add(textBody(Component.text(bio, NamedTextColor.GRAY)));
         } else if (self) {
-            bodies.add(textBody(Component.text("No description yet.", NamedTextColor.DARK_GRAY)));
+            bodies.add(textBody(Component.text("No bio yet.", NamedTextColor.DARK_GRAY)));
         }
 
         List<ActionButton> actions = new ArrayList<>();
         actions.add(wideBtn("View Stats", "Open stats preview",
                 p -> openStatsPreview(p, target, targetName, back -> openFriendProfile(back, target, targetName))));
         if (self) {
-            actions.add(wideBtn("Edit Description", "Set a short profile bio",
-                    p -> openDescriptionEditor(p, back -> openFriendProfile(back, target, targetName))));
+            actions.add(wideBtn("Edit Bio", "Set a short profile bio",
+                    p -> openBioEditor(p, back -> openFriendProfile(back, target, targetName))));
         }
         if (!self) {
             actions.add(wideBtn("Pay", "Send money", p -> {
@@ -726,9 +689,9 @@ public final class MenuHub {
         StatsService.PlayerStats stats = plugin.stats().get(target);
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(textBody(withHeadIcon(target, targetName)));
-        String description = plugin.settings().getDescription(target);
-        if (!description.isBlank()) {
-            bodies.add(textBody(Component.text(description, NamedTextColor.GRAY)));
+        String bio = plugin.settings().getBio(target);
+        if (!bio.isBlank()) {
+            bodies.add(textBody(Component.text(bio, NamedTextColor.GRAY)));
         }
         if (privacy.showMoney()) {
             bodies.add(textBody(Messages.mm(
@@ -745,8 +708,8 @@ public final class MenuHub {
 
         List<ActionButton> actions = new ArrayList<>();
         if (viewer.getUniqueId().equals(target)) {
-            actions.add(wideBtn("Edit Description", "Set a short profile bio",
-                    p -> openDescriptionEditor(p, editBack -> openStatsPreview(editBack, target, targetName, back))));
+            actions.add(wideBtn("Edit Bio", "Set a short profile bio",
+                    p -> openBioEditor(p, editBack -> openStatsPreview(editBack, target, targetName, back))));
         }
         show(viewer, Component.text(targetName), bodies, actions, 1, back);
     }
@@ -756,9 +719,9 @@ public final class MenuHub {
         StatsService.PlayerStats stats = plugin.stats().get(target);
         List<DialogBody> bodies = new ArrayList<>();
         bodies.add(textBody(withHeadIcon(target, targetName)));
-        String description = plugin.settings().getDescription(target);
-        if (!description.isBlank()) {
-            bodies.add(textBody(Component.text(description, NamedTextColor.GRAY)));
+        String bio = plugin.settings().getBio(target);
+        if (!bio.isBlank()) {
+            bodies.add(textBody(Component.text(bio, NamedTextColor.GRAY)));
         }
         if (privacy.showMoney()) {
             bodies.add(textBody(Component.text(
@@ -780,29 +743,29 @@ public final class MenuHub {
         show(viewer, Component.text(targetName + " Profile"), bodies, List.of(), 1, back);
     }
 
-    public void openDescriptionEditor(Player player, Consumer<Player> back) {
-        String current = plugin.settings().getDescription(player.getUniqueId());
-        DialogInput input = DialogInput.text("profile_desc", Component.text("Description"))
+    public void openBioEditor(Player player, Consumer<Player> back) {
+        String current = plugin.settings().getBio(player.getUniqueId());
+        DialogInput input = DialogInput.text("profile_desc", Component.text("Bio"))
                 .initial(current)
-                .maxLength(SettingsService.DESCRIPTION_MAX)
+                .maxLength(SettingsService.BIO_MAX)
                 .width(300)
                 .multiline(TextDialogInput.MultilineOptions.create(4, 80))
                 .build();
         List<ActionButton> actions = List.of(
-                wideBtn("Save", "Save your description", (p, view) -> {
+                wideBtn("Save", "Save your bio", (p, view) -> {
                     String typed = view.getText("profile_desc");
-                    plugin.settings().setDescription(p.getUniqueId(), typed == null ? "" : typed);
-                    Messages.send(plugin, p, "<green>Description updated.</green>");
-                    plugin.logAction(p.getName() + " updated profile description");
+                    plugin.settings().setBio(p.getUniqueId(), typed == null ? "" : typed);
+                    Messages.send(plugin, p, "<green>Bio updated.</green>");
+                    plugin.logAction(p.getName() + " updated profile bio");
                     back.accept(p);
                 }),
-                wideBtn("Clear", "Remove your description", p -> {
-                    plugin.settings().setDescription(p.getUniqueId(), "");
-                    Messages.send(plugin, p, "<yellow>Description cleared.</yellow>");
+                wideBtn("Clear", "Remove your bio", p -> {
+                    plugin.settings().setBio(p.getUniqueId(), "");
+                    Messages.send(plugin, p, "<yellow>Bio cleared.</yellow>");
                     back.accept(p);
                 })
         );
-        show(player, Component.text("Profile Description"),
+        show(player, Component.text("Profile Bio"),
                 List.of(textBody(Component.text("Shown on your stats and friend profile.", NamedTextColor.GRAY))),
                 List.of(input), actions, 1, back, true);
     }
@@ -913,59 +876,45 @@ public final class MenuHub {
                 btn("Notifications", "Kill/death message filter", this::openSettingsNotifs),
                 btn("Visuals", "Night vision & money nametag", this::openSettingsVisuals),
                 btn("Privacy", "Profile fields & instant TPA", this::openSettingsPrivacy),
-                btn("Description", "Edit your profile bio",
-                        p -> openDescriptionEditor(p, this::openSettings)),
+                btn("Bio", "Edit your profile bio",
+                        p -> openBioEditor(p, this::openSettings)),
                 btn("General", "Auction/Sell & Jobs preference", this::openSettingsGeneral)
         );
-        show(player, "Settings", "Stored per player", actions, 2, this::openMain);
+        show(player, "Settings", "Tap a category", actions, 2, this::openMain);
     }
 
     private void openSettingsChat(Player player) {
         PlayerSettings s = plugin.settings().get(player.getUniqueId());
         List<ActionButton> actions = List.of(
-                toggleBtn("Chat: FRIENDS", s.chatFilter() == PlayerSettings.Filter.FRIENDS, p -> {
+                cycleFilterBtn("Chat", s.chatFilter(), p -> {
                     saveSettings(p, cur -> new PlayerSettings(
-                            PlayerSettings.Filter.FRIENDS, cur.notifFilter(), cur.nightVision(), cur.moneyNametag(),
-                            cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
-                            cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
-                    openSettingsChat(p);
-                }),
-                toggleBtn("Chat: EVERYONE", s.chatFilter() == PlayerSettings.Filter.EVERYONE, p -> {
-                    saveSettings(p, cur -> new PlayerSettings(
-                            PlayerSettings.Filter.EVERYONE, cur.notifFilter(), cur.nightVision(), cur.moneyNametag(),
+                            cur.chatFilter().next(), cur.notifFilter(), cur.nightVision(), cur.moneyNametag(),
                             cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
                             cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
                     openSettingsChat(p);
                 })
         );
-        show(player, "Chat Filter", "FRIENDS or EVERYONE", actions, 1, this::openSettings);
+        show(player, "Chat", "Tap to cycle", actions, 1, this::openSettings);
     }
 
     private void openSettingsNotifs(Player player) {
         PlayerSettings s = plugin.settings().get(player.getUniqueId());
         List<ActionButton> actions = List.of(
-                toggleBtn("Notifs: FRIENDS", s.notifFilter() == PlayerSettings.Filter.FRIENDS, p -> {
+                cycleFilterBtn("Notifications", s.notifFilter(), p -> {
                     saveSettings(p, cur -> new PlayerSettings(
-                            cur.chatFilter(), PlayerSettings.Filter.FRIENDS, cur.nightVision(), cur.moneyNametag(),
-                            cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
-                            cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
-                    openSettingsNotifs(p);
-                }),
-                toggleBtn("Notifs: EVERYONE", s.notifFilter() == PlayerSettings.Filter.EVERYONE, p -> {
-                    saveSettings(p, cur -> new PlayerSettings(
-                            cur.chatFilter(), PlayerSettings.Filter.EVERYONE, cur.nightVision(), cur.moneyNametag(),
+                            cur.chatFilter(), cur.notifFilter().next(), cur.nightVision(), cur.moneyNametag(),
                             cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
                             cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
                     openSettingsNotifs(p);
                 })
         );
-        show(player, "Notifications", "Kill/death visibility", actions, 1, this::openSettings);
+        show(player, "Notifications", "Tap to cycle", actions, 1, this::openSettings);
     }
 
     private void openSettingsVisuals(Player player) {
         PlayerSettings s = plugin.settings().get(player.getUniqueId());
         List<ActionButton> actions = List.of(
-                toggleBtn("Night Vision", s.nightVision(), p -> {
+                onOffBtn("Night Vision", s.nightVision(), p -> {
                     saveSettings(p, cur -> new PlayerSettings(
                             cur.chatFilter(), cur.notifFilter(), !cur.nightVision(), cur.moneyNametag(),
                             cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
@@ -973,7 +922,7 @@ public final class MenuHub {
                     plugin.settings().applyVisuals(p);
                     openSettingsVisuals(p);
                 }),
-                toggleBtn("Money Nametag", s.moneyNametag(), p -> {
+                onOffBtn("Money Nametag", s.moneyNametag(), p -> {
                     saveSettings(p, cur -> new PlayerSettings(
                             cur.chatFilter(), cur.notifFilter(), cur.nightVision(), !cur.moneyNametag(),
                             cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
@@ -982,32 +931,32 @@ public final class MenuHub {
                     openSettingsVisuals(p);
                 })
         );
-        show(player, "Visuals", "Client-side helpers", actions, 1, this::openSettings);
+        show(player, "Visuals", "Tap to switch", actions, 1, this::openSettings);
     }
 
     private void openSettingsPrivacy(Player player) {
         PlayerSettings s = plugin.settings().get(player.getUniqueId());
         List<ActionButton> actions = new ArrayList<>();
-        actions.add(toggleBtn("Show Money", s.showMoney(), p -> flipPrivacy(p, "money")));
-        actions.add(toggleBtn("Show Kills", s.showKills(), p -> flipPrivacy(p, "kills")));
-        actions.add(toggleBtn("Show Deaths", s.showDeaths(), p -> flipPrivacy(p, "deaths")));
-        actions.add(toggleBtn("Show Playtime", s.showPlaytime(), p -> flipPrivacy(p, "playtime")));
-        actions.add(toggleBtn("Show Job", s.showJob(), p -> flipPrivacy(p, "job")));
-        actions.add(btn("Instant TPA: " + s.instantTpa().name(), "Cycle ANYONE/FRIENDS/NOBODY", p -> {
+        actions.add(visibilityBtn("Money", s.showMoney(), p -> flipPrivacy(p, "money")));
+        actions.add(visibilityBtn("Kills", s.showKills(), p -> flipPrivacy(p, "kills")));
+        actions.add(visibilityBtn("Deaths", s.showDeaths(), p -> flipPrivacy(p, "deaths")));
+        actions.add(visibilityBtn("Playtime", s.showPlaytime(), p -> flipPrivacy(p, "playtime")));
+        actions.add(visibilityBtn("Job", s.showJob(), p -> flipPrivacy(p, "job")));
+        actions.add(cycleInstantBtn("Instant TPA", s.instantTpa(), p -> {
             saveSettings(p, cur -> new PlayerSettings(
                     cur.chatFilter(), cur.notifFilter(), cur.nightVision(), cur.moneyNametag(),
                     cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
-                    cycleInstant(cur.instantTpa()), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
+                    cur.instantTpa().next(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
             openSettingsPrivacy(p);
         }));
-        actions.add(btn("Instant TPAHere: " + s.instantTpaHere().name(), "Cycle ANYONE/FRIENDS/NOBODY", p -> {
+        actions.add(cycleInstantBtn("Instant TPAHere", s.instantTpaHere(), p -> {
             saveSettings(p, cur -> new PlayerSettings(
                     cur.chatFilter(), cur.notifFilter(), cur.nightVision(), cur.moneyNametag(),
                     cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
-                    cur.instantTpa(), cycleInstant(cur.instantTpaHere()), cur.auctionEnabled(), cur.jobsEnabled()));
+                    cur.instantTpa(), cur.instantTpaHere().next(), cur.auctionEnabled(), cur.jobsEnabled()));
             openSettingsPrivacy(p);
         }));
-        show(player, "Privacy", "Who can see your profile / instant TP", actions, 2, this::openSettings);
+        show(player, "Privacy", "Tap to switch", actions, 2, this::openSettings);
     }
 
     private void flipPrivacy(Player player, String field) {
@@ -1034,14 +983,14 @@ public final class MenuHub {
     private void openSettingsGeneral(Player player) {
         PlayerSettings s = plugin.settings().get(player.getUniqueId());
         List<ActionButton> actions = List.of(
-                toggleBtn("Auction/Sell enabled", s.auctionEnabled(), p -> {
+                onOffBtn("Auction/Sell", s.auctionEnabled(), p -> {
                     saveSettings(p, cur -> new PlayerSettings(
                             cur.chatFilter(), cur.notifFilter(), cur.nightVision(), cur.moneyNametag(),
                             cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
                             cur.instantTpa(), cur.instantTpaHere(), !cur.auctionEnabled(), cur.jobsEnabled()));
                     openSettingsGeneral(p);
                 }),
-                toggleBtn("Jobs enabled", s.jobsEnabled(), p -> {
+                onOffBtn("Jobs", s.jobsEnabled(), p -> {
                     saveSettings(p, cur -> new PlayerSettings(
                             cur.chatFilter(), cur.notifFilter(), cur.nightVision(), cur.moneyNametag(),
                             cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
@@ -1049,7 +998,7 @@ public final class MenuHub {
                     openSettingsGeneral(p);
                 })
         );
-        show(player, "General", "Personal feature toggles", actions, 1, this::openSettings);
+        show(player, "General", "Tap to switch", actions, 1, this::openSettings);
     }
 
     private void saveSettings(Player player, java.util.function.Function<PlayerSettings, PlayerSettings> fn) {
@@ -1058,12 +1007,39 @@ public final class MenuHub {
         plugin.logAction(player.getName() + " updated settings");
     }
 
-    private static PlayerSettings.InstantAllow cycleInstant(PlayerSettings.InstantAllow current) {
-        return switch (current) {
-            case ANYONE -> PlayerSettings.InstantAllow.FRIENDS;
-            case FRIENDS -> PlayerSettings.InstantAllow.NOBODY;
-            case NOBODY -> PlayerSettings.InstantAllow.ANYONE;
+    private ActionButton cycleFilterBtn(String name, PlayerSettings.Filter filter, Consumer<Player> click) {
+        NamedTextColor color = switch (filter) {
+            case NOBODY -> NamedTextColor.RED;
+            case FRIENDS -> NamedTextColor.GOLD;
+            case EVERYONE -> NamedTextColor.GREEN;
         };
+        Component label = Component.text(name + ": ", NamedTextColor.WHITE)
+                .append(Component.text(filter.pretty(), color));
+        return btn(label, "Tap to cycle: Noone → Friends → Everyone", click);
+    }
+
+    private ActionButton cycleInstantBtn(String name, PlayerSettings.InstantAllow allow, Consumer<Player> click) {
+        NamedTextColor color = switch (allow) {
+            case NOBODY -> NamedTextColor.RED;
+            case FRIENDS -> NamedTextColor.GOLD;
+            case ANYONE -> NamedTextColor.GREEN;
+        };
+        Component label = Component.text(name + ": ", NamedTextColor.WHITE)
+                .append(Component.text(allow.pretty(), color));
+        return btn(label, "Tap to cycle: Noone → Friends → Everyone", click);
+    }
+
+    private ActionButton onOffBtn(String name, boolean on, Consumer<Player> click) {
+        Component label = Component.text(name + ": ", NamedTextColor.WHITE)
+                .append(Component.text(on ? "On" : "Off", on ? NamedTextColor.GREEN : NamedTextColor.RED));
+        return btn(label, "Tap to switch", click);
+    }
+
+    private ActionButton visibilityBtn(String name, boolean shown, Consumer<Player> click) {
+        Component label = Component.text(name + ": ", NamedTextColor.WHITE)
+                .append(Component.text(shown ? "Everyone" : "Hidden",
+                        shown ? NamedTextColor.GREEN : NamedTextColor.RED));
+        return btn(label, "Tap to switch", click);
     }
 
     // --- Dialog helpers ---
@@ -1248,11 +1224,6 @@ public final class MenuHub {
                         .lifetime(java.time.Duration.ofHours(1))
                         .build()))
                 .build();
-    }
-
-    private ActionButton toggleBtn(String label, boolean on, Consumer<Player> click) {
-        String prefix = on ? "[ON] " : "[OFF] ";
-        return btn(prefix + label, "Click to change", click);
     }
 
     private static String prettyBoard(StatsService.LeaderboardType type) {

@@ -5,6 +5,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 public final class Messages {
 
@@ -21,9 +22,24 @@ public final class Messages {
         return LegacyComponentSerializer.legacySection().serialize(component);
     }
 
+    /**
+     * In-game notices for players go above the hotbar (action bar).
+     * Console / non-players still get chat. No plugin branding prefix.
+     */
     public static void send(EcoSTGPlugin plugin, CommandSender sender, String miniMessage) {
-        String prefix = plugin.getConfig().getString("messages.prefix", "");
-        sender.sendMessage(mm(prefix + miniMessage));
+        Component message = mm(miniMessage);
+        if (sender instanceof Player player) {
+            player.sendActionBar(message);
+        } else {
+            sender.sendMessage(message);
+        }
+    }
+
+    /**
+     * Multi-line command output (e.g. help) in chat, still without branding.
+     */
+    public static void chat(EcoSTGPlugin plugin, CommandSender sender, String miniMessage) {
+        sender.sendMessage(mm(miniMessage));
     }
 
     /** Always compact: {@code $ 2.5K}, {@code $ 1.2M}, etc. */

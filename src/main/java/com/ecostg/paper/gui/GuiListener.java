@@ -110,7 +110,10 @@ public final class GuiListener implements Listener {
 
         // Allow free placement in item slots 0..52; block dumping onto the button via shift-click
         if (raw >= 0 && raw < topSize && raw != GuiManager.SELL_BUTTON_SLOT) {
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.guis().refreshSellGui(top));
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.worth().stripPlayerInventory(player);
+                plugin.guis().refreshSellGui(top);
+            });
             return;
         }
 
@@ -124,6 +127,7 @@ public final class GuiListener implements Listener {
                 return;
             }
             ItemStack moving = current.clone();
+            plugin.worth().stripSellLore(moving);
             for (int i = 0; i < GuiManager.SELL_ITEM_SLOTS && moving.getAmount() > 0; i++) {
                 ItemStack inSlot = top.getItem(i);
                 if (inSlot == null || inSlot.getType().isAir()) {
@@ -132,7 +136,9 @@ public final class GuiListener implements Listener {
                     event.setCurrentItem(null);
                     break;
                 }
-                if (inSlot.isSimilar(moving)) {
+                ItemStack compare = inSlot.clone();
+                plugin.worth().stripSellLore(compare);
+                if (compare.isSimilar(moving)) {
                     int max = inSlot.getMaxStackSize();
                     int space = max - inSlot.getAmount();
                     if (space <= 0) {
@@ -152,14 +158,20 @@ public final class GuiListener implements Listener {
             if (moving != null && moving.getAmount() > 0) {
                 event.setCurrentItem(moving);
             }
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.guis().refreshSellGui(top));
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.worth().stripPlayerInventory(player);
+                plugin.guis().refreshSellGui(top);
+            });
             return;
         }
 
         if (raw >= 0 && raw < topSize) {
             event.setCancelled(true);
         } else {
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.guis().refreshSellGui(top));
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.worth().stripPlayerInventory(player);
+                plugin.guis().refreshSellGui(top);
+            });
         }
     }
 
@@ -259,14 +271,12 @@ public final class GuiListener implements Listener {
                     return;
                 }
                 plugin.economy().withdraw(player.getUniqueId(), listing.price());
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(listing.item());
-                overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+                giveCleanItem(player, listing.item());
                 Messages.send(plugin, player, "<yellow>Cancelled prepaid listing. "
                         + Messages.money(plugin, listing.price()) + " returned from your balance.</yellow>");
                 plugin.logAction(player.getName() + " cancelled prepaid AH#" + listingId);
             } else if (plugin.auctions().deleteListing(listingId)) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(listing.item());
-                overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+                giveCleanItem(player, listing.item());
                 Messages.send(plugin, player, "<yellow>You cancelled your listing and got the item back.</yellow>");
                 plugin.logAction(player.getName() + " cancelled AH#" + listingId);
             }
@@ -312,10 +322,18 @@ public final class GuiListener implements Listener {
             }
             plugin.logAction(player.getName() + " bought prepaid AH#" + listingId + " for " + price);
         }
-        HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(listing.item());
-        overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+        giveCleanItem(player, listing.item());
         Messages.send(plugin, player, "<green>Purchased for " + Messages.money(plugin, price) + ".</green>");
         plugin.guis().openAuction(player, 0);
+    }
+
+    private void giveCleanItem(Player player, ItemStack raw) {
+        ItemStack clean = plugin.worth().undecoratedClone(raw);
+        if (clean == null || clean.getType().isAir()) {
+            return;
+        }
+        HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(clean);
+        overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
     }
 
     private void handleJobDetail(Player player, GuiSession session, int slot) {
@@ -380,7 +398,11 @@ public final class GuiListener implements Listener {
                 return;
             }
             Inventory top = event.getView().getTopInventory();
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.guis().refreshSellGui(top));
+            Player player = (Player) event.getWhoClicked();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.worth().stripPlayerInventory(player);
+                plugin.guis().refreshSellGui(top);
+            });
             return;
         }
         if (session.type() == GuiType.AUCTION_LIST) {
@@ -405,11 +427,11 @@ public final class GuiListener implements Listener {
         GuiSession session = holder.session();
         if (session.type() == GuiType.SELL) {
             plugin.guis().returnSellItems(player, event.getInventory());
+            plugin.worth().stripPlayerInventory(player);
         } else if (session.type() == GuiType.AUCTION_LIST) {
             ItemStack stack = event.getInventory().getItem(13);
             if (stack != null && !stack.getType().isAir()) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(stack);
-                overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+                giveCleanItem(player, stack);
                 event.getInventory().setItem(13, null);
             }
         }

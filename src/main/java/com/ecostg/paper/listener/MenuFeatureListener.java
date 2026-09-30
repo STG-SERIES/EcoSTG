@@ -135,6 +135,9 @@ public final class MenuFeatureListener implements Listener {
         if (settings.notifFilter() == PlayerSettings.Filter.EVERYONE) {
             return true;
         }
+        if (settings.notifFilter() == PlayerSettings.Filter.NOBODY) {
+            return false;
+        }
         boolean friendVictim = plugin.friends().areFriends(viewerId, victim.getUniqueId());
         boolean friendKiller = killer != null && plugin.friends().areFriends(viewerId, killer.getUniqueId());
         return friendVictim || friendKiller;
@@ -155,6 +158,10 @@ public final class MenuFeatureListener implements Listener {
                 return false;
             }
             PlayerSettings viewerSettings = plugin.settings().get(viewerId);
+            if (senderSettings.chatFilter() == PlayerSettings.Filter.NOBODY
+                    || viewerSettings.chatFilter() == PlayerSettings.Filter.NOBODY) {
+                return true;
+            }
             if (senderSettings.chatFilter() == PlayerSettings.Filter.FRIENDS
                     && !plugin.friends().areFriends(senderId, viewerId)) {
                 return true;

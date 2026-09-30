@@ -155,7 +155,7 @@ public final class SettingsService {
         applyMoneyNametag(player, false);
     }
 
-    public String getDescription(UUID uuid) {
+    public String getBio(UUID uuid) {
         ensure(uuid);
         try (PreparedStatement ps = database.connection().prepareStatement(
                 "SELECT profile_description FROM player_settings WHERE uuid=?")) {
@@ -172,9 +172,9 @@ public final class SettingsService {
         }
     }
 
-    public void setDescription(UUID uuid, String description) {
+    public void setBio(UUID uuid, String bio) {
         ensure(uuid);
-        String cleaned = sanitizeDescription(description);
+        String cleaned = sanitizeBio(bio);
         try (PreparedStatement ps = database.connection().prepareStatement(
                 "UPDATE player_settings SET profile_description=? WHERE uuid=?")) {
             ps.setString(1, cleaned);
@@ -185,15 +185,15 @@ public final class SettingsService {
         }
     }
 
-    public static final int DESCRIPTION_MAX = 120;
+    public static final int BIO_MAX = 120;
 
-    public static String sanitizeDescription(String raw) {
+    public static String sanitizeBio(String raw) {
         if (raw == null) {
             return "";
         }
         String cleaned = raw.replace('\0', ' ').replace('§', ' ').strip();
-        if (cleaned.length() > DESCRIPTION_MAX) {
-            cleaned = cleaned.substring(0, DESCRIPTION_MAX);
+        if (cleaned.length() > BIO_MAX) {
+            cleaned = cleaned.substring(0, BIO_MAX);
         }
         return cleaned;
     }

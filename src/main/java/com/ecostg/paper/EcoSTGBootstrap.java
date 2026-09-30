@@ -70,16 +70,15 @@ public final class EcoSTGBootstrap implements PluginBootstrap {
         actions.add(hubBtn("Teleport", "TPA / TPAHere", MenuHub.HUB_TELEPORT));
         actions.add(hubBtn("Leaderboards", "Top players", MenuHub.HUB_LEADERBOARDS));
         actions.add(hubBtn("RTP", "Random teleport (cooldown)", MenuHub.HUB_RTP));
-        actions.add(hubBtn("RTP Queue", "Teleport to a random player", MenuHub.HUB_RTP_QUEUE));
         actions.add(hubBtn("Friends", "Follow players; friends when both follow", MenuHub.HUB_FRIENDS));
         actions.add(hubBtn("Pay", "Send money", MenuHub.HUB_PAY));
         actions.add(hubBtn("Stats", "View player stats", MenuHub.HUB_STATS));
-        actions.add(hubBtn("Settings", "Privacy, chat, visuals", MenuHub.HUB_SETTINGS));
         actions.add(hubBtn("Ender Chest", "Open your ender chest", MenuHub.HUB_ENDER_CHEST));
         if (gsitPresent) {
             actions.add(hubBtn("Sit/lay", "Sit, crawl, lay, or spin (GSit)", MenuHub.HUB_SIT_LAY));
         }
         actions.add(hubBtn("Gamemode", "Change your gamemode (OP)", MenuHub.HUB_GAMEMODE));
+        actions.add(hubBtn("Settings", "Privacy, chat, visuals, bio", MenuHub.HUB_SETTINGS));
         return actions;
     }
 

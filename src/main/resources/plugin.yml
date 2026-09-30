@@ -38,10 +38,6 @@ commands:
   rtp:
     description: Random teleport in the current world
     usage: /rtp
-  rtpq:
-    description: Teleport to a random online player
-    usage: /rtpq
-    aliases: [rtpqueue]
   stats:
     description: View your stats or another player's stats
     usage: /stats [player]

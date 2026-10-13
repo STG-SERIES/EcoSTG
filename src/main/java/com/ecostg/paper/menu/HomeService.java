@@ -231,6 +231,9 @@ public final class HomeService {
     }
 
     public boolean teleport(Player player, String rawName) {
+        if (plugin.combat().denyIfInCombat(player)) {
+            return false;
+        }
         Home home = get(player.getUniqueId(), rawName);
         if (home == null) {
             return false;

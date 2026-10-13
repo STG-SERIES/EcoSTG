@@ -1,6 +1,9 @@
 .gradle/
 build/
+platforms/*/build/
 out/
+# Keep built distribution jars under builds/ in git
+!builds/
 .idea/
 *.iml
 *.ipr

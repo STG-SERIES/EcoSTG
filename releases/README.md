@@ -4,6 +4,11 @@ Each EcoSTG version has its own notes in this folder.
 
 | Version | Notes |
 |---------|--------|
+| 1.5.22 | [1.5.22.md](1.5.22.md) — combat tag; multi-platform builds (1.21.11 + 26.x) |
+| 1.5.21 | [1.5.21.md](1.5.21.md) — leaderboard Back fix; NV after totem/death |
+| 1.5.20 | [1.5.20.md](1.5.20.md) — fix Choose Color layout; remove pearl icon |
+| 1.5.19 | [1.5.19.md](1.5.19.md) — AH instant buy; keep page/search |
+| 1.5.18 | [1.5.18.md](1.5.18.md) — home Color button + Set here |
 | 1.5.17 | [1.5.17.md](1.5.17.md) — fix sell/AH items not stacking |
 | 1.5.16 | [1.5.16.md](1.5.16.md) — homes: all listed; Color as tap button |
 | 1.5.15 | [1.5.15.md](1.5.15.md) — remove rtpq; Settings last; tap-cycle settings; Bio |

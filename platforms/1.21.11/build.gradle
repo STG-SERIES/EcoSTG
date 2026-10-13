@@ -1,0 +1,7 @@
+ext {
+    platformLabel = '1.21.11'
+    paperApi = '1.21.11-R0.1-SNAPSHOT'
+    javaRelease = 21
+    apiVersionYaml = '1.21'
+}
+apply from: rootProject.file('gradle/platform.gradle')

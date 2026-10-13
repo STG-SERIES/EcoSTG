@@ -34,6 +34,9 @@ public final class TpaService {
             Messages.send(plugin, from, "<red>You cannot teleport to yourself.</red>");
             return;
         }
+        if (plugin.combat().denyIfInCombat(from)) {
+            return;
+        }
 
         PlayerSettings targetSettings = plugin.settings().get(to.getUniqueId());
         PlayerSettings.InstantAllow allow = type == Type.TPA
@@ -46,7 +49,9 @@ public final class TpaService {
             case NOBODY -> false;
         };
         if (instant) {
-            perform(from, to, type);
+            if (!perform(from, to, type)) {
+                return;
+            }
             Messages.send(plugin, from, "<green>Teleport completed (instant privacy).</green>");
             Messages.send(plugin, to, "<green>" + from.getName() + " teleported via instant privacy.</green>");
             return;
@@ -66,17 +71,22 @@ public final class TpaService {
     }
 
     public boolean accept(Player target) {
-        Pending pending = pendingByTarget.remove(target.getUniqueId());
+        Pending pending = pendingByTarget.get(target.getUniqueId());
         if (pending == null) {
             Messages.send(plugin, target, "<red>No pending teleport request.</red>");
             return false;
         }
         Player from = Bukkit.getPlayer(pending.from());
         if (from == null || !from.isOnline()) {
+            pendingByTarget.remove(target.getUniqueId());
             Messages.send(plugin, target, "<red>That player is no longer online.</red>");
             return false;
         }
-        perform(from, target, pending.type());
+        if (!canPerform(from, target, pending.type(), target)) {
+            return false;
+        }
+        pendingByTarget.remove(target.getUniqueId());
+        performUnchecked(from, target, pending.type());
         Messages.send(plugin, target, "<green>Teleport accepted.</green>");
         Messages.send(plugin, from, "<green>" + target.getName() + " accepted your teleport request.</green>");
         plugin.logAction(target.getName() + " accepted teleport from " + from.getName());
@@ -102,7 +112,30 @@ public final class TpaService {
         pendingByTarget.entrySet().removeIf(e -> e.getValue().from().equals(player));
     }
 
-    private void perform(Player from, Player to, Type type) {
+    private boolean perform(Player from, Player to, Type type) {
+        if (!canPerform(from, to, type, from)) {
+            return false;
+        }
+        performUnchecked(from, to, type);
+        return true;
+    }
+
+    private boolean canPerform(Player from, Player to, Type type, Player notify) {
+        if (plugin.combat().denyIfInCombat(notify)) {
+            return false;
+        }
+        Player mover = type == Type.TPA ? from : to;
+        if (!mover.getUniqueId().equals(notify.getUniqueId())
+                && plugin.combat().isInCombat(mover.getUniqueId())) {
+            long sec = plugin.combat().remainingSeconds(mover.getUniqueId());
+            Messages.send(plugin, notify,
+                    "<red>" + mover.getName() + " is in combat (" + sec + "s).</red>");
+            return false;
+        }
+        return true;
+    }
+
+    private void performUnchecked(Player from, Player to, Type type) {
         if (type == Type.TPA) {
             from.teleport(to.getLocation());
         } else {

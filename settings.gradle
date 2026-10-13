@@ -1,1 +1,7 @@
 rootProject.name = 'EcoSTG'
+
+def platforms = ['1.21.11', '26.1', '26.1.2', '26.2', '26.3']
+platforms.each { name ->
+    include "paper-${name}"
+    project(":paper-${name}").projectDir = file("platforms/${name}")
+}

@@ -15,6 +15,11 @@ rtp:
   min-radius: 32
   max-attempts: 80
 
+combat:
+  # Seconds tagged after hitting a player or taking any damage. Blocks home / TPA / RTP.
+  # Operators are never tagged; the other player in a fight with an OP still is.
+  duration-seconds: 15
+
 auction:
   # Percent taken from the seller on a successful sale (money sink)
   sale-tax-percent: 5.0

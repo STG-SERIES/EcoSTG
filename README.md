@@ -1,15 +1,24 @@
 # EcoSTG
 
-Lightweight [Paper](https://papermc.io/) / [Purpur](https://purpurmc.org/) **1.21.11** plugin: economy, auction house, jobs, and an ESC hub menu (Dialog API).
+Lightweight [Paper](https://papermc.io/) / [Purpur](https://purpurmc.org/) plugin: economy, auction house, jobs, and an ESC hub menu (Dialog API).
 
-**Current version:** `1.5.17`  
-**Output jar:** `build/libs/EcoSTG-1.5.17.jar`
+**Current version:** `1.5.22`  
 
-Release notes for each version: [`releases/`](releases/).
+Built for **Paper 1.21.11**, **26.1**, **26.1.2**, **26.2**, and **26.3** — pick the jar that matches your server.
+
+| Server | Folder / jar | Java |
+|--------|----------------|------|
+| Paper/Purpur **1.21.11** | [`builds/1.21.11/`](builds/1.21.11/) | 21+ |
+| Paper **26.1** | [`builds/26.1/`](builds/26.1/) | 25+ |
+| Paper **26.1.2** | [`builds/26.1.2/`](builds/26.1.2/) | 25+ |
+| Paper **26.2** | [`builds/26.2/`](builds/26.2/) | 25+ |
+| Paper **26.3** | [`builds/26.3/`](builds/26.3/) | 25+ |
+
+Release notes: [`releases/`](releases/).
 
 ## Requirements
 
-- **Paper** or **Purpur** **1.21.11+** (Java 21) — Purpur is Paper-compatible; this jar works on both
+- Matching **Paper** (or Purpur) line from the table above — do not mix jars across lines
 - No Vault or other economy plugins — EcoSTG uses its own SQLite economy
 
 ## Features
@@ -66,6 +75,11 @@ Every hub feature also has a chat command.
 
 `/ecostg mainletters change <name>` — OP. Live menus update immediately; the ESC button label needs a **server restart**.
 
+### Combat
+Hitting another player, or taking any damage, starts a combat timer above the hotbar: `Combat: <secs>s` (seconds in blue). While it is running, **home / TPA / TPAHere / RTP** are blocked. Taking or dealing damage again resets the timer.
+
+Operators are **never** tagged. If an OP fights a non-OP, only the non-OP gets the timer.
+
 ### Friends
 Following is one-way. You become **friends** only when both players follow each other.
 
@@ -105,20 +119,24 @@ Important actions are logged as `[ACTION]` in the server console.
 
 ## Build
 
+Build every Paper target into `builds/<platform>/`:
+
 ```bash
-./gradlew jar
+./gradlew buildAll
 ```
 
-Use JDK 21. On Windows with a custom JDK:
+Or one platform, e.g. `./gradlew :paper-26.3:build`.
+
+Use a JDK that can run Gradle (21+). Platform modules use toolchains (JDK 21 for 1.21.11, JDK 26 for Paper 26.x). On Windows:
 
 ```powershell
 $env:JAVA_HOME = "$env:USERPROFILE\jdk-21\jdk-21.0.12.1+1"
-.\gradlew.bat jar
+.\gradlew.bat buildAll
 ```
 
 ## Install
 
-1. Put `EcoSTG-1.5.17.jar` in `plugins/`
+1. Copy `builds/<your-paper-version>/EcoSTG-1.5.22.jar` into `plugins/`
 2. Start once to generate `config.yml`, `worth.yml`, `jobs.yml`, and `ecostg.db`
 3. Edit configs, then **restart** (prefer restart over `/reload` for Paper/Purpur plugins)
 
@@ -140,6 +158,9 @@ rtp:
   max-radius: 1500
   min-radius: 32
   max-attempts: 80
+
+combat:
+  duration-seconds: 15
 
 auction:
   sale-tax-percent: 5.0

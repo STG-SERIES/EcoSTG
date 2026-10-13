@@ -206,6 +206,7 @@ public final class MenuHub {
             return;
         }
         String name = home.name();
+        String colorLabel = HomeService.presetLabel(home.colorHex());
         List<ActionButton> actions = new ArrayList<>();
         actions.add(btn("Teleport", "Go to this home", p -> {
             if (plugin.homes().teleport(p, name)) {
@@ -215,11 +216,18 @@ public final class MenuHub {
                 openHomes(p);
             }
         }));
-        actions.add(btn(Component.object(ObjectContents.sprite(
-                        Key.key("minecraft:items"),
-                        Key.key("minecraft:item/ender_pearl"))),
-                "Change color (" + HomeService.presetLabel(home.colorHex()) + ")",
-                p -> openHomeColorPicker(p, name)));
+        actions.add(btn("Set here", "Move this home to your current location (keeps name & color)", p -> {
+            if (plugin.homes().setHome(p, name)) {
+                Messages.send(plugin, p, "<green>Home '" + name + "' set here.</green>");
+                plugin.logAction(p.getName() + " set home '" + name + "' here");
+                openHomeDetail(p, name);
+            } else {
+                Messages.send(plugin, p, "<red>Could not update this home.</red>");
+                openHomeDetail(p, name);
+            }
+        }));
+        actions.add(btn(Component.text("Color: " + colorLabel, home.textColor()),
+                "Change color", p -> openHomeColorPicker(p, name)));
         actions.add(btn("Rename", "Change this home's name", p -> openHomeRename(p, name)));
         actions.add(btn(Component.text("Delete", NamedTextColor.RED), "Remove this home", p -> {
             plugin.homes().deleteHome(p.getUniqueId(), name);
@@ -282,7 +290,9 @@ public final class MenuHub {
                 openHomeDetail(p, name);
             }));
         }
-        actions.add(wideBtn("Apply HEX", "Use the custom color below", (p, view) -> {
+        // Same width as color grid (2 x BTN_WIDTH); do not use wideBtn here — stretchLastRow
+        // would multiply an already-wide button and blow out the dialog.
+        actions.add(btn("Apply HEX", "Use the custom color above", (p, view) -> {
             String typed = view.getText("home_hex");
             String hex = HomeService.parseHexInput(typed);
             if (hex == null) {
@@ -295,13 +305,14 @@ public final class MenuHub {
             openHomeDetail(p, name);
         }));
 
+        int gridWidth = BTN_WIDTH * 2;
         DialogInput hexInput = DialogInput.text("home_hex", Component.text("Custom HEX (#RRGGBB)"))
                 .initial(currentHex)
                 .maxLength(7)
-                .width(300)
+                .width(gridWidth)
                 .build();
         show(player, Component.text("Choose Color"),
-                List.of(textBody(Component.text("Current: " + HomeService.presetLabel(currentHex), home.textColor()))),
+                List.of(),
                 List.of(hexInput), actions, 2, p -> openHomeDetail(p, name), true);
     }
 
@@ -398,8 +409,9 @@ public final class MenuHub {
         if (top.isEmpty()) {
             bodies.add(textBody(Component.text("No data yet.", NamedTextColor.GRAY)));
         }
-        List<ActionButton> actions = List.of(btn("Back", "Return", this::openLeaderboards));
-        show(player, Component.text("Top " + prettyBoard(type)), bodies, actions, 1, this::openLeaderboards);
+        // Single Back in actions only — notice+exitAction duplicates Back when the body scrolls.
+        show(player, Component.text("Top " + prettyBoard(type)), bodies, List.of(),
+                List.of(btn("Back", "Go back", this::openLeaderboards)), 1, null, false);
     }
 
     private Component leaderboardLine(int rank, StatsService.LeaderboardEntry entry,

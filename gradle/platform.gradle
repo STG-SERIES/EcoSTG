@@ -1,0 +1,111 @@
+// Shared platform module build logic. Expects ext:
+//   platformLabel  - folder / jar label (e.g. "26.3")
+//   paperApi       - paper-api Maven version
+//   javaRelease    - bytecode release (21 or 25)
+//   apiVersionYaml - paper-plugin.yml api-version string
+
+apply plugin: 'java'
+
+group = rootProject.group
+version = rootProject.version
+
+// Toolchain JDK: 21 for Paper 1.21.11; 26 for Paper 26.x (compiles --release 25).
+def toolchainJava = ((javaRelease as Integer) <= 21) ? 21 : 26
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(toolchainJava)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    compileOnly "io.papermc.paper:paper-api:${paperApi}"
+    implementation 'org.xerial:sqlite-jdbc:3.49.1.0'
+}
+
+sourceSets {
+    main {
+        java.srcDirs = [rootProject.file('src/main/java')]
+        resources.srcDirs = [rootProject.file('src/main/resources')]
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = (javaRelease as Integer)
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    def props = [
+            version   : version,
+            apiVersion: apiVersionYaml
+    ]
+    inputs.properties props
+    filesMatching(['plugin.yml', 'paper-plugin.yml']) {
+        expand props
+    }
+}
+
+def outDir = rootProject.file("builds/${platformLabel}")
+
+jar {
+    archiveBaseName = 'EcoSTG'
+    archiveVersion = version
+    archiveClassifier = "paper${platformLabel}"
+    destinationDirectory = outDir
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+tasks.register('syncReleaseNotes', Copy) {
+    from rootProject.file('releases')
+    into new File(outDir, 'releases')
+}
+
+tasks.register('writePlatformReadme') {
+    dependsOn jar
+    doLast {
+        outDir.mkdirs()
+        def jarName = jar.archiveFile.get().asFile.name
+        def readme = new File(outDir, 'README.md')
+        readme.text = """# EcoSTG for Paper ${platformLabel}
+
+**Plugin version:** `${version}`  
+**Jar:** `${jarName}`  
+**Paper API:** `${paperApi}`  
+**Java:** ${javaRelease}+
+
+## Install
+
+1. Use a **Paper/Purpur ${platformLabel}** server (Java ${javaRelease}+)
+2. Put `${jarName}` in `plugins/`
+3. Restart the server
+
+Release notes: see `releases/` in this folder (same notes as the main repo).
+
+Do **not** mix jars across Paper major lines (e.g. do not put the 1.21.11 jar on a 26.x server).
+"""
+    }
+}
+
+tasks.named('build') {
+    dependsOn syncReleaseNotes, writePlatformReadme
+}
+
+tasks.named('jar') {
+    doLast {
+        // Also copy a plain name for drop-in installs
+        def plain = new File(outDir, "EcoSTG-${version}.jar")
+        java.nio.file.Files.copy(
+                jar.archiveFile.get().asFile.toPath(),
+                plain.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+    }
+}

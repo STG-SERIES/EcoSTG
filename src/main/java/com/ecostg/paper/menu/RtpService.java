@@ -51,6 +51,9 @@ public final class RtpService {
      * already-searching so the menu can stay open.
      */
     public boolean rtp(Player player) {
+        if (plugin.combat().denyIfInCombat(player)) {
+            return false;
+        }
         UUID uuid = player.getUniqueId();
         long remaining = cooldownRemainingMs(uuid);
         if (remaining > 0) {
@@ -162,6 +165,11 @@ public final class RtpService {
         Player player = Bukkit.getPlayer(uuid);
         if (player == null || !player.isOnline()) {
             finishSearch(uuid, token);
+            return;
+        }
+        if (plugin.combat().isInCombat(uuid)) {
+            fail(uuid, token, "<red>You cannot teleport while in combat ("
+                    + plugin.combat().remainingSeconds(uuid) + "s).</red>");
             return;
         }
         player.teleportAsync(loc).whenComplete((ok, err) -> {

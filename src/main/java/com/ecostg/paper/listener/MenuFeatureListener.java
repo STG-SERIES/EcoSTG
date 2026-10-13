@@ -17,9 +17,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
+import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -77,6 +81,50 @@ public final class MenuFeatureListener implements Listener {
         plugin.settings().clearVisuals(player);
         plugin.chatInput().clear(player);
         plugin.guis().clear(player);
+    }
+
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) {
+                plugin.settings().applyVisuals(player);
+            }
+        }, 1L);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onResurrect(EntityResurrectEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) {
+                plugin.settings().applyVisuals(player);
+            }
+        }, 1L);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onNightVisionCleared(EntityPotionEffectEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        if (event.getModifiedType() != PotionEffectType.NIGHT_VISION) {
+            return;
+        }
+        if (event.getAction() != EntityPotionEffectEvent.Action.REMOVED
+                && event.getAction() != EntityPotionEffectEvent.Action.CLEARED) {
+            return;
+        }
+        if (!plugin.settings().get(player.getUniqueId()).nightVision()) {
+            return;
+        }
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (player.isOnline() && plugin.settings().get(player.getUniqueId()).nightVision()) {
+                plugin.settings().applyVisuals(player);
+            }
+        });
     }
 
     @EventHandler(ignoreCancelled = true)

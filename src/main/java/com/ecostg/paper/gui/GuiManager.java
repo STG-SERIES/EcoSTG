@@ -165,7 +165,11 @@ public final class GuiManager {
                 double buyerDiscount = plugin.getConfig().getDouble("jobs.ah-buyer-discount-percent", 8.0);
                 lore.add(Messages.mm("<green>Your job buyer discount: <white>" + formatPercent(buyerDiscount) + "%"));
             }
-            lore.add(Messages.mm("<yellow>Click to buy"));
+            if (listing.sellerUuid().equals(player.getUniqueId())) {
+                lore.add(Messages.mm("<yellow>Click to cancel"));
+            } else {
+                lore.add(Messages.mm("<yellow>Click to buy"));
+            }
             meta.lore(lore);
             display.setItemMeta(meta);
             inv.setItem(i, display);
@@ -189,34 +193,6 @@ public final class GuiManager {
             return String.valueOf((int) Math.rint(value));
         }
         return String.format(java.util.Locale.US, "%.1f", value);
-    }
-
-    public void openAuctionConfirm(Player player, long listingId) {
-        AuctionService.Listing listing = plugin.auctions().getListing(listingId);
-        if (listing == null) {
-            Messages.send(plugin, player, "<red>That listing no longer exists.</red>");
-            openAuction(player, 0);
-            return;
-        }
-        boolean worker = plugin.jobs().isWorker(player.getUniqueId());
-        double price = plugin.auctions().buyerPrice(listing, worker);
-        GuiSession session = new GuiSession(GuiType.AUCTION_CONFIRM);
-        session.put("listingId", listingId);
-        session.put("price", price);
-        Inventory inv = create(session, 27, Messages.mm("<red>Confirm Purchase"));
-        ItemStack item = listing.item().clone();
-        List<String> confirmLore = new ArrayList<>();
-        confirmLore.add("<white>Buy " + item.getAmount() + "x " + pretty(item.getType()));
-        confirmLore.add("<white>for " + Messages.money(plugin, price) + "?");
-        if (listing.workerListing()) {
-            double listingDiscount = plugin.getConfig().getDouble("jobs.worker-listing-discount-percent", 5.0);
-            confirmLore.add("<aqua>By a worker — " + formatPercent(listingDiscount) + "% off");
-        }
-        confirmLore.add("<gray>Are you sure you want to buy this?");
-        inv.setItem(13, item);
-        inv.setItem(11, ItemUtil.named(Material.LIME_CONCRETE, "<green>Confirm", confirmLore));
-        inv.setItem(15, ItemUtil.named(Material.RED_CONCRETE, "<red>Cancel", List.of()));
-        open(player, session, inv);
     }
 
     public static final int SELL_BUTTON_SLOT = 53;

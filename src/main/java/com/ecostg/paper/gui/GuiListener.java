@@ -72,7 +72,6 @@ public final class GuiListener implements Listener {
                 }
             }
             case AUCTION -> handleAuctionClick(player, session, slot);
-            case AUCTION_CONFIRM -> handleConfirm(player, session, slot);
             case MONEYTOP, ACTIVE_JOBS -> {
             }
             case JOBS -> {
@@ -221,13 +220,12 @@ public final class GuiListener implements Listener {
         if (search == null) {
             search = "";
         }
+        int page = session.get("page") == null ? 0 : ((Number) session.get("page")).intValue();
         if (slot == 45) {
-            int page = session.get("page") == null ? 0 : ((Number) session.get("page")).intValue();
             plugin.guis().openAuction(player, Math.max(0, page - 1), search);
             return;
         }
         if (slot == 53) {
-            int page = session.get("page") == null ? 0 : ((Number) session.get("page")).intValue();
             plugin.guis().openAuction(player, page + 1, search);
             return;
         }
@@ -237,24 +235,15 @@ public final class GuiListener implements Listener {
         }
         Object listingId = session.get("slot:" + slot);
         if (listingId instanceof Number id) {
-            plugin.guis().openAuctionConfirm(player, id.longValue());
+            tryBuyOrCancelListing(player, id.longValue(), page, search);
         }
     }
 
-    private void handleConfirm(Player player, GuiSession session, int slot) {
-        if (slot == 15) {
-            plugin.guis().openAuction(player, 0);
-            return;
-        }
-        if (slot != 11) {
-            return;
-        }
-        long listingId = ((Number) session.get("listingId")).longValue();
-        double expected = ((Number) session.get("price")).doubleValue();
+    private void tryBuyOrCancelListing(Player player, long listingId, int page, String search) {
         AuctionService.Listing listing = plugin.auctions().getListing(listingId);
         if (listing == null) {
             Messages.send(plugin, player, "<red>That listing no longer exists.</red>");
-            plugin.guis().openAuction(player, 0);
+            reopenAuction(player, page, search);
             return;
         }
         if (listing.sellerUuid().equals(player.getUniqueId())) {
@@ -267,7 +256,7 @@ public final class GuiListener implements Listener {
                 }
                 if (!plugin.auctions().deleteListing(listingId)) {
                     Messages.send(plugin, player, "<red>That listing no longer exists.</red>");
-                    plugin.guis().openAuction(player, 0);
+                    reopenAuction(player, page, search);
                     return;
                 }
                 plugin.economy().withdraw(player.getUniqueId(), listing.price());
@@ -280,16 +269,11 @@ public final class GuiListener implements Listener {
                 Messages.send(plugin, player, "<yellow>You cancelled your listing and got the item back.</yellow>");
                 plugin.logAction(player.getName() + " cancelled AH#" + listingId);
             }
-            plugin.guis().openAuction(player, 0);
+            reopenAuction(player, page, search);
             return;
         }
         boolean worker = plugin.jobs().isWorker(player.getUniqueId());
         double price = plugin.auctions().buyerPrice(listing, worker);
-        if (Math.abs(price - expected) > 0.011) {
-            Messages.send(plugin, player, "<red>Price changed. Please try again.</red>");
-            plugin.guis().openAuction(player, 0);
-            return;
-        }
         if (!plugin.economy().isEconomyEnabled(player.getUniqueId())
                 || !plugin.economy().isEconomyEnabled(listing.sellerUuid())) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
@@ -301,7 +285,7 @@ public final class GuiListener implements Listener {
         }
         if (!plugin.auctions().deleteListing(listingId)) {
             Messages.send(plugin, player, "<red>That listing no longer exists.</red>");
-            plugin.guis().openAuction(player, 0);
+            reopenAuction(player, page, search);
             return;
         }
         plugin.economy().withdraw(player.getUniqueId(), price);
@@ -324,7 +308,16 @@ public final class GuiListener implements Listener {
         }
         giveCleanItem(player, listing.item());
         Messages.send(plugin, player, "<green>Purchased for " + Messages.money(plugin, price) + ".</green>");
-        plugin.guis().openAuction(player, 0);
+        reopenAuction(player, page, search);
+    }
+
+    private void reopenAuction(Player player, int page, String search) {
+        String query = search == null ? "" : search;
+        int safePage = Math.max(0, page);
+        if (safePage > 0 && plugin.auctions().listFiltered(query, safePage * 45, 45).isEmpty()) {
+            safePage--;
+        }
+        plugin.guis().openAuction(player, Math.max(0, safePage), query);
     }
 
     private void giveCleanItem(Player player, ItemStack raw) {

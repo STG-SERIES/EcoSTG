@@ -1,7 +1,7 @@
 name: EcoSTG-Paper
 version: ${version}
 main: com.ecostg.paper.EcoSTGPlugin
-api-version: '1.21'
+api-version: '${apiVersion}'
 author: EcoSTG
 description: Lightweight Paper/Purpur economy, auction house, jobs, and ESC menu hub.
 softdepend: [GSit]

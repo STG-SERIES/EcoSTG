@@ -1,0 +1,8 @@
+// Paper release line "26.1" publishes as 26.1.1.* on Maven (no bare 26.1 artifact).
+ext {
+    platformLabel = '26.1'
+    paperApi = '26.1.1.build.29-alpha'
+    javaRelease = 25
+    apiVersionYaml = '1.21'
+}
+apply from: rootProject.file('gradle/platform.gradle')

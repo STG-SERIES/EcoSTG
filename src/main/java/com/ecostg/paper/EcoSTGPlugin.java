@@ -10,6 +10,7 @@ import com.ecostg.paper.gui.GuiManager;
 import com.ecostg.paper.job.JobService;
 import com.ecostg.paper.listener.ChatInputListener;
 import com.ecostg.paper.listener.MenuFeatureListener;
+import com.ecostg.paper.menu.CombatService;
 import com.ecostg.paper.menu.FriendService;
 import com.ecostg.paper.menu.HomeService;
 import com.ecostg.paper.menu.MenuHub;
@@ -42,6 +43,7 @@ public final class EcoSTGPlugin extends JavaPlugin {
     private SettingsService settings;
     private TpaService tpa;
     private RtpService rtp;
+    private CombatService combat;
     private BukkitTask playtimeTask;
 
     @Override
@@ -65,6 +67,7 @@ public final class EcoSTGPlugin extends JavaPlugin {
         settings = new SettingsService(this, database);
         tpa = new TpaService(this);
         rtp = new RtpService(this);
+        combat = new CombatService(this);
         menus = new MenuHub(this);
         menus.registerServerLink();
 
@@ -103,6 +106,7 @@ public final class EcoSTGPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(chatInput, this);
 
         jobs.startScheduler();
+        combat.start();
         playtimeTask = getServer().getScheduler().runTaskTimer(this, () -> stats.flushAllOnline(), 20L * 60, 20L * 60);
         getLogger().info("EcoSTG Paper enabled.");
     }
@@ -111,6 +115,9 @@ public final class EcoSTGPlugin extends JavaPlugin {
     public void onDisable() {
         if (playtimeTask != null) {
             playtimeTask.cancel();
+        }
+        if (combat != null) {
+            combat.stop();
         }
         if (stats != null) {
             stats.flushAllOnline();
@@ -182,6 +189,10 @@ public final class EcoSTGPlugin extends JavaPlugin {
 
     public RtpService rtp() {
         return rtp;
+    }
+
+    public CombatService combat() {
+        return combat;
     }
 
     private void registerPaperCommand(String label, String description, List<String> aliases, EcoCommands commands) {

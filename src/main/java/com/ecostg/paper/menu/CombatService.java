@@ -11,7 +11,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.projectiles.ProjectileSource;
@@ -56,6 +55,9 @@ public final class CombatService implements Listener {
     }
 
     public boolean isInCombat(UUID uuid) {
+        if (!plugin.features().combat()) {
+            return false;
+        }
         return remainingSeconds(uuid) > 0;
     }
 
@@ -76,6 +78,9 @@ public final class CombatService implements Listener {
      * @return {@code true} if the player is in combat (and was told they cannot teleport)
      */
     public boolean denyIfInCombat(Player player) {
+        if (!plugin.features().combat()) {
+            return false;
+        }
         long sec = remainingSeconds(player.getUniqueId());
         if (sec <= 0) {
             return false;
@@ -89,6 +94,9 @@ public final class CombatService implements Listener {
     }
 
     private void tag(Player player) {
+        if (!plugin.features().combat()) {
+            return;
+        }
         if (player == null || !player.isOnline() || player.isOp()) {
             return;
         }
@@ -124,25 +132,19 @@ public final class CombatService implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onDamage(EntityDamageEvent event) {
+    public void onPlayerCombat(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player victim)) {
             return;
         }
         if (event.getFinalDamage() <= 0) {
             return;
         }
-
-        // Anyone hit by anything enters combat (OPs exempt inside tag).
-        tag(victim);
-
-        if (!(event instanceof EntityDamageByEntityEvent byEntity)) {
-            return;
-        }
-        Player attacker = resolveAttackingPlayer(byEntity.getDamager());
+        Player attacker = resolveAttackingPlayer(event.getDamager());
         if (attacker == null || attacker.getUniqueId().equals(victim.getUniqueId())) {
             return;
         }
-        // Hitting another player tags the attacker (OPs exempt).
+        // PvP only — mobs, fall, fire, etc. do not tag.
+        tag(victim);
         tag(attacker);
     }
 

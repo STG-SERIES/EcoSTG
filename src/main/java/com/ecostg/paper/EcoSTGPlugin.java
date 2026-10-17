@@ -18,6 +18,7 @@ import com.ecostg.paper.menu.RtpService;
 import com.ecostg.paper.menu.SettingsService;
 import com.ecostg.paper.menu.StatsService;
 import com.ecostg.paper.menu.TpaService;
+import com.ecostg.paper.util.Features;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
@@ -44,6 +45,7 @@ public final class EcoSTGPlugin extends JavaPlugin {
     private TpaService tpa;
     private RtpService rtp;
     private CombatService combat;
+    private Features features;
     private BukkitTask playtimeTask;
 
     @Override
@@ -68,6 +70,7 @@ public final class EcoSTGPlugin extends JavaPlugin {
         tpa = new TpaService(this);
         rtp = new RtpService(this);
         combat = new CombatService(this);
+        features = new Features(this);
         menus = new MenuHub(this);
         menus.registerServerLink();
 
@@ -107,6 +110,9 @@ public final class EcoSTGPlugin extends JavaPlugin {
 
         jobs.startScheduler();
         combat.start();
+        if (!features.economy()) {
+            getServer().getOnlinePlayers().forEach(settings::clearMoneyNametagOnly);
+        }
         playtimeTask = getServer().getScheduler().runTaskTimer(this, () -> stats.flushAllOnline(), 20L * 60, 20L * 60);
         getLogger().info("EcoSTG Paper enabled.");
     }
@@ -193,6 +199,10 @@ public final class EcoSTGPlugin extends JavaPlugin {
 
     public CombatService combat() {
         return combat;
+    }
+
+    public Features features() {
+        return features;
     }
 
     private void registerPaperCommand(String label, String description, List<String> aliases, EcoCommands commands) {

@@ -101,29 +101,51 @@ public final class MenuHub {
 
     public void openMain(Player player) {
         List<ActionButton> actions = new ArrayList<>();
-        actions.add(btn("Homes", "Set & teleport to homes", p -> openHomes(p)));
-        actions.add(btn("Auction", "Browse the auction house", this::openAuctionSafe));
-        actions.add(btn("Sell", "List items on the auction house", this::openSellSafe));
-        actions.add(btn("Teleport", "TPA / TPAHere", this::openTeleport));
-        actions.add(btn("Leaderboards", "Top players", this::openLeaderboards));
-        actions.add(btn("RTP", "Random teleport (" + plugin.rtp().cooldownSeconds() + "s cooldown)", p -> {
-            if (plugin.rtp().rtp(p)) {
-                p.closeDialog();
-            } else {
-                openMain(p);
-            }
-        }));
-        actions.add(btn("Friends", "Follow players; friends when both follow", this::openFriends));
-        actions.add(btn("Pay", "Send money", this::openPayPlayers));
-        actions.add(btn("Stats", "View player stats", this::openStatsPlayers));
-        actions.add(btn("Ender Chest", "Open your ender chest", this::openEnderChest));
-        if (isGsitEnabled()) {
+        if (plugin.features().homes()) {
+            actions.add(btn("Homes", "Set & teleport to homes", p -> openHomes(p)));
+        }
+        if (plugin.features().auction()) {
+            actions.add(btn("Auction", "Browse the auction house", this::openAuctionSafe));
+        }
+        if (plugin.features().sell()) {
+            actions.add(btn("Sell", "List items on the auction house", this::openSellSafe));
+        }
+        if (plugin.features().tpa()) {
+            actions.add(btn("Teleport", "TPA / TPAHere", this::openTeleport));
+        }
+        if (plugin.features().leaderboards()) {
+            actions.add(btn("Leaderboards", "Top players", this::openLeaderboards));
+        }
+        if (plugin.features().rtp()) {
+            actions.add(btn("RTP", "Random teleport (" + plugin.rtp().cooldownSeconds() + "s cooldown)", p -> {
+                if (plugin.rtp().rtp(p)) {
+                    p.closeDialog();
+                } else {
+                    openMain(p);
+                }
+            }));
+        }
+        if (plugin.features().friends()) {
+            actions.add(btn("Friends", "Follow players; friends when both follow", this::openFriends));
+        }
+        if (plugin.features().pay()) {
+            actions.add(btn("Pay", "Send money", this::openPayPlayers));
+        }
+        if (plugin.features().stats()) {
+            actions.add(btn("Stats", "View player stats", this::openStatsPlayers));
+        }
+        if (plugin.features().enderchest()) {
+            actions.add(btn("Ender Chest", "Open your ender chest", this::openEnderChest));
+        }
+        if (plugin.features().sitLay() && isGsitEnabled()) {
             actions.add(btn("Sit/lay", "Sit, crawl, lay, or spin (GSit)", this::openSitLay));
         }
-        if (player.isOp()) {
+        if (plugin.features().gamemode() && player.isOp()) {
             actions.add(btn("Gamemode", "Change your gamemode (OP)", this::openGamemode));
         }
-        actions.add(btn("Settings", "Privacy, chat, visuals, bio", this::openSettings));
+        if (plugin.features().settings()) {
+            actions.add(btn("Settings", "Privacy, chat, visuals, bio", this::openSettings));
+        }
 
         show(player, mainLetters(), "Server hub menu", actions, 2, null);
     }
@@ -132,38 +154,79 @@ public final class MenuHub {
      * Handles pause-screen hub buttons (registry dialog custom clicks).
      */
     public void handleRegistryHubAction(Player player, Key key) {
+        if (key.equals(HUB_CLOSE)) {
+            player.closeDialog();
+            return;
+        }
         if (key.equals(HUB_HOMES)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().homes())) {
+                return;
+            }
             openHomes(player);
         } else if (key.equals(HUB_AUCTION)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().auction())) {
+                return;
+            }
             openAuctionSafe(player);
         } else if (key.equals(HUB_SELL)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().sell())) {
+                return;
+            }
             openSellSafe(player);
         } else if (key.equals(HUB_TELEPORT)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().tpa())) {
+                return;
+            }
             openTeleport(player);
         } else if (key.equals(HUB_LEADERBOARDS)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().leaderboards())) {
+                return;
+            }
             openLeaderboards(player);
         } else if (key.equals(HUB_RTP)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().rtp())) {
+                return;
+            }
             if (plugin.rtp().rtp(player)) {
                 player.closeDialog();
             } else {
                 openMain(player);
             }
         } else if (key.equals(HUB_FRIENDS)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().friends())) {
+                return;
+            }
             openFriends(player);
         } else if (key.equals(HUB_PAY)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().pay())) {
+                return;
+            }
             openPayPlayers(player);
         } else if (key.equals(HUB_STATS)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().stats())) {
+                return;
+            }
             openStatsPlayers(player);
         } else if (key.equals(HUB_SETTINGS)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().settings())) {
+                return;
+            }
             openSettings(player);
         } else if (key.equals(HUB_ENDER_CHEST)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().enderchest())) {
+                return;
+            }
             openEnderChest(player);
         } else if (key.equals(HUB_SIT_LAY)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().sitLay())) {
+                return;
+            }
             openSitLay(player);
         } else if (key.equals(HUB_GAMEMODE)) {
+            if (plugin.features().denyIfDisabled(player, plugin.features().gamemode())) {
+                return;
+            }
             openGamemode(player);
-        } else if (key.equals(HUB_CLOSE)) {
-            player.closeDialog();
         } else {
             openMain(player);
         }
@@ -393,12 +456,19 @@ public final class MenuHub {
     public void openLeaderboards(Player player) {
         List<ActionButton> actions = new ArrayList<>();
         for (StatsService.LeaderboardType type : StatsService.LeaderboardType.values()) {
+            if (type == StatsService.LeaderboardType.MONEY && !plugin.features().economy()) {
+                continue;
+            }
             actions.add(btn(prettyBoard(type), "Top 10", p -> openLeaderboard(p, type)));
         }
         show(player, "Leaderboards", "Choose a category", actions, 2, this::openMain);
     }
 
     public void openLeaderboard(Player player, StatsService.LeaderboardType type) {
+        if (type == StatsService.LeaderboardType.MONEY
+                && plugin.features().denyIfDisabled(player, plugin.features().economy())) {
+            return;
+        }
         List<StatsService.LeaderboardEntry> top = plugin.stats().top(type, 10);
         List<DialogBody> bodies = new ArrayList<>();
         int rank = 1;
@@ -550,29 +620,41 @@ public final class MenuHub {
                     p -> openBioEditor(p, back -> openFriendProfile(back, target, targetName))));
         }
         if (!self) {
-            actions.add(wideBtn("Pay", "Send money", p -> {
-                if (!plugin.guis().canUseEconomy(p)) {
-                    Messages.send(plugin, p, plugin.getConfig().getString("messages.economy-disabled", ""));
-                    openFriendProfile(p, target, targetName);
-                    return;
-                }
-                if (Bukkit.getPlayer(target) == null) {
-                    Messages.send(plugin, p, "<red>That player is offline.</red>");
-                    openFriendProfile(p, target, targetName);
-                    return;
-                }
-                openPayAmounts(p, target, targetName, back -> openFriendProfile(back, target, targetName));
-            }));
-            actions.add(wideBtn("Teleport", "Send a TPA request", p -> {
-                Player targetPlayer = Bukkit.getPlayer(target);
-                if (targetPlayer == null) {
-                    Messages.send(plugin, p, "<red>That player is offline.</red>");
-                    openFriendProfile(p, target, targetName);
-                    return;
-                }
-                plugin.tpa().request(p, targetPlayer, TpaService.Type.TPA);
-                p.closeDialog();
-            }));
+            if (plugin.features().pay()) {
+                actions.add(wideBtn("Pay", "Send money", p -> {
+                    if (plugin.features().denyIfDisabled(p, plugin.features().pay())) {
+                        openFriendProfile(p, target, targetName);
+                        return;
+                    }
+                    if (!plugin.guis().canUseEconomy(p)) {
+                        Messages.send(plugin, p, plugin.getConfig().getString("messages.economy-disabled", ""));
+                        openFriendProfile(p, target, targetName);
+                        return;
+                    }
+                    if (Bukkit.getPlayer(target) == null) {
+                        Messages.send(plugin, p, "<red>That player is offline.</red>");
+                        openFriendProfile(p, target, targetName);
+                        return;
+                    }
+                    openPayAmounts(p, target, targetName, back -> openFriendProfile(back, target, targetName));
+                }));
+            }
+            if (plugin.features().tpa()) {
+                actions.add(wideBtn("Teleport", "Send a TPA request", p -> {
+                    if (plugin.features().denyIfDisabled(p, plugin.features().tpa())) {
+                        openFriendProfile(p, target, targetName);
+                        return;
+                    }
+                    Player targetPlayer = Bukkit.getPlayer(target);
+                    if (targetPlayer == null) {
+                        Messages.send(plugin, p, "<red>That player is offline.</red>");
+                        openFriendProfile(p, target, targetName);
+                        return;
+                    }
+                    plugin.tpa().request(p, targetPlayer, TpaService.Type.TPA);
+                    p.closeDialog();
+                }));
+            }
         }
         if (!self && following) {
             actions.add(btn(Component.text("Unfollow", NamedTextColor.RED), "Stop following", WIDE_BUTTON,
@@ -617,6 +699,9 @@ public final class MenuHub {
     // --- Pay ---
 
     public void openPayPlayers(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().pay())) {
+            return;
+        }
         if (!plugin.guis().canUseEconomy(player)) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
             return;
@@ -658,6 +743,9 @@ public final class MenuHub {
     }
 
     public void pay(Player payer, UUID target, String targetName, double amount) {
+        if (plugin.features().denyIfDisabled(payer, plugin.features().pay())) {
+            return;
+        }
         if (!plugin.economy().isEconomyEnabled(payer.getUniqueId())
                 || !plugin.economy().isEconomyEnabled(target)) {
             Messages.send(plugin, payer, plugin.getConfig().getString("messages.economy-disabled", ""));
@@ -705,11 +793,13 @@ public final class MenuHub {
         if (!bio.isBlank()) {
             bodies.add(textBody(Component.text(bio, NamedTextColor.GRAY)));
         }
-        if (privacy.showMoney()) {
-            bodies.add(textBody(Messages.mm(
-                    "Money: <green>" + Messages.compactMoney(plugin, plugin.economy().getBalance(target)) + "</green>")));
-        } else {
-            bodies.add(textBody(Component.text("Money: Hidden")));
+        if (plugin.features().economy()) {
+            if (privacy.showMoney()) {
+                bodies.add(textBody(Messages.mm(
+                        "Money: <green>" + Messages.compactMoney(plugin, plugin.economy().getBalance(target)) + "</green>")));
+            } else {
+                bodies.add(textBody(Component.text("Money: Hidden")));
+            }
         }
         bodies.add(textBody(Component.text(
                 "Kills: " + (privacy.showKills() ? String.valueOf(stats.kills()) : "Hidden"))));
@@ -735,11 +825,13 @@ public final class MenuHub {
         if (!bio.isBlank()) {
             bodies.add(textBody(Component.text(bio, NamedTextColor.GRAY)));
         }
-        if (privacy.showMoney()) {
-            bodies.add(textBody(Component.text(
-                    "Money: " + Messages.money(plugin, plugin.economy().getBalance(target)))));
-        } else {
-            bodies.add(textBody(Component.text("Money: Hidden")));
+        if (plugin.features().economy()) {
+            if (privacy.showMoney()) {
+                bodies.add(textBody(Component.text(
+                        "Money: " + Messages.money(plugin, plugin.economy().getBalance(target)))));
+            } else {
+                bodies.add(textBody(Component.text("Money: Hidden")));
+            }
         }
         bodies.add(textBody(Component.text(
                 "Kills: " + (privacy.showKills() ? String.valueOf(stats.kills()) : "Hidden"))));
@@ -803,6 +895,9 @@ public final class MenuHub {
     }
 
     public void openEnderChest(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().enderchest())) {
+            return;
+        }
         player.closeDialog();
         Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(player.getEnderChest()));
     }
@@ -834,6 +929,9 @@ public final class MenuHub {
     // --- Gamemode (OP) ---
 
     public void openGamemode(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().gamemode())) {
+            return;
+        }
         if (!player.isOp()) {
             Messages.send(plugin, player, "<red>Only operators can change gamemode.</red>");
             openMain(player);
@@ -886,7 +984,9 @@ public final class MenuHub {
         List<ActionButton> actions = List.of(
                 btn("Chat", "Who you see in chat", this::openSettingsChat),
                 btn("Notifications", "Kill/death message filter", this::openSettingsNotifs),
-                btn("Visuals", "Night vision & money nametag", this::openSettingsVisuals),
+                btn("Visuals",
+                        plugin.features().economy() ? "Night vision & money nametag" : "Night vision",
+                        this::openSettingsVisuals),
                 btn("Privacy", "Profile fields & instant TPA", this::openSettingsPrivacy),
                 btn("Bio", "Edit your profile bio",
                         p -> openBioEditor(p, this::openSettings)),
@@ -925,31 +1025,34 @@ public final class MenuHub {
 
     private void openSettingsVisuals(Player player) {
         PlayerSettings s = plugin.settings().get(player.getUniqueId());
-        List<ActionButton> actions = List.of(
-                onOffBtn("Night Vision", s.nightVision(), p -> {
-                    saveSettings(p, cur -> new PlayerSettings(
-                            cur.chatFilter(), cur.notifFilter(), !cur.nightVision(), cur.moneyNametag(),
-                            cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
-                            cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
-                    plugin.settings().applyVisuals(p);
-                    openSettingsVisuals(p);
-                }),
-                onOffBtn("Money Nametag", s.moneyNametag(), p -> {
-                    saveSettings(p, cur -> new PlayerSettings(
-                            cur.chatFilter(), cur.notifFilter(), cur.nightVision(), !cur.moneyNametag(),
-                            cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
-                            cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
-                    plugin.settings().applyVisuals(p);
-                    openSettingsVisuals(p);
-                })
-        );
+        List<ActionButton> actions = new ArrayList<>();
+        actions.add(onOffBtn("Night Vision", s.nightVision(), p -> {
+            saveSettings(p, cur -> new PlayerSettings(
+                    cur.chatFilter(), cur.notifFilter(), !cur.nightVision(), cur.moneyNametag(),
+                    cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
+                    cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
+            plugin.settings().applyVisuals(p);
+            openSettingsVisuals(p);
+        }));
+        if (plugin.features().economy()) {
+            actions.add(onOffBtn("Money Nametag", s.moneyNametag(), p -> {
+                saveSettings(p, cur -> new PlayerSettings(
+                        cur.chatFilter(), cur.notifFilter(), cur.nightVision(), !cur.moneyNametag(),
+                        cur.showMoney(), cur.showKills(), cur.showDeaths(), cur.showPlaytime(), cur.showJob(),
+                        cur.instantTpa(), cur.instantTpaHere(), cur.auctionEnabled(), cur.jobsEnabled()));
+                plugin.settings().applyVisuals(p);
+                openSettingsVisuals(p);
+            }));
+        }
         show(player, "Visuals", "Tap to switch", actions, 1, this::openSettings);
     }
 
     private void openSettingsPrivacy(Player player) {
         PlayerSettings s = plugin.settings().get(player.getUniqueId());
         List<ActionButton> actions = new ArrayList<>();
-        actions.add(visibilityBtn("Money", s.showMoney(), p -> flipPrivacy(p, "money")));
+        if (plugin.features().economy()) {
+            actions.add(visibilityBtn("Money", s.showMoney(), p -> flipPrivacy(p, "money")));
+        }
         actions.add(visibilityBtn("Kills", s.showKills(), p -> flipPrivacy(p, "kills")));
         actions.add(visibilityBtn("Deaths", s.showDeaths(), p -> flipPrivacy(p, "deaths")));
         actions.add(visibilityBtn("Playtime", s.showPlaytime(), p -> flipPrivacy(p, "playtime")));

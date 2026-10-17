@@ -5,6 +5,28 @@ currency-symbol: "$"
 menu:
   main-letters: "EcoSTG"
 
+# Toggle hub buttons, commands, and related systems. Restart for ESC pause-menu buttons.
+# economy: false also turns off auction, sell, pay, balance, moneytop, and jobs.
+features:
+  economy: true
+  auction: true
+  sell: true
+  pay: true
+  balance: true
+  moneytop: true
+  jobs: true
+  homes: true
+  tpa: true
+  rtp: true
+  friends: true
+  stats: true
+  leaderboards: true
+  enderchest: true
+  sit-lay: true
+  settings: true
+  combat: true
+  gamemode: true
+
 homes:
   max: 3
 
@@ -16,7 +38,7 @@ rtp:
   max-attempts: 80
 
 combat:
-  # Seconds tagged after hitting a player or taking any damage. Blocks home / TPA / RTP.
+  # Seconds tagged after PvP (player hit by / hitting a player). Blocks home / TPA / RTP.
   # Operators are never tagged; the other player in a fight with an OP still is.
   duration-seconds: 15
 
@@ -37,6 +59,7 @@ jobs:
 messages:
   # Notices use the action bar (above hotbar); no chat prefix / branding.
   economy-disabled: "<red>Your economy access is disabled.</red>"
+  feature-disabled: "<red>That feature is disabled on this server.</red>"
   insufficient-funds: "<red>You do not have enough Dollars.</red>"
   player-not-found: "<red>Player not found.</red>"
   invalid-amount: "<red>Invalid amount.</red>"

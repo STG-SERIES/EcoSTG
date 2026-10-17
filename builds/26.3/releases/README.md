@@ -4,6 +4,7 @@ Each EcoSTG version has its own notes in this folder.
 
 | Version | Notes |
 |---------|--------|
+| 1.5.23 | [1.5.23.md](1.5.23.md) — combat PvP-only; config feature toggles |
 | 1.5.22 | [1.5.22.md](1.5.22.md) — combat tag; multi-platform builds (1.21.11 + 26.x) |
 | 1.5.21 | [1.5.21.md](1.5.21.md) — leaderboard Back fix; NV after totem/death |
 | 1.5.20 | [1.5.20.md](1.5.20.md) — fix Choose Color layout; remove pearl icon |

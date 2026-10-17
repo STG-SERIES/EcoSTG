@@ -2,7 +2,7 @@
 
 Lightweight [Paper](https://papermc.io/) / [Purpur](https://purpurmc.org/) plugin: economy, auction house, jobs, and an ESC hub menu (Dialog API).
 
-**Current version:** `1.5.22`  
+**Current version:** `1.5.23`  
 
 Built for **Paper 1.21.11**, **26.1**, **26.1.2**, **26.2**, and **26.3** — pick the jar that matches your server.
 
@@ -76,7 +76,7 @@ Every hub feature also has a chat command.
 `/ecostg mainletters change <name>` — OP. Live menus update immediately; the ESC button label needs a **server restart**.
 
 ### Combat
-Hitting another player, or taking any damage, starts a combat timer above the hotbar: `Combat: <secs>s` (seconds in blue). While it is running, **home / TPA / TPAHere / RTP** are blocked. Taking or dealing damage again resets the timer.
+Hitting or being hit by another player starts a combat timer above the hotbar: `Combat: <secs>s` (seconds in blue). Mobs, fall, and other non-player damage do not count. While it is running, **home / TPA / TPAHere / RTP** are blocked. PvP again resets the timer.
 
 Operators are **never** tagged. If an OP fights a non-OP, only the non-OP gets the timer.
 
@@ -136,7 +136,7 @@ $env:JAVA_HOME = "$env:USERPROFILE\jdk-21\jdk-21.0.12.1+1"
 
 ## Install
 
-1. Copy `builds/<your-paper-version>/EcoSTG-1.5.22.jar` into `plugins/`
+1. Copy `builds/<your-paper-version>/EcoSTG-1.5.23.jar` into `plugins/`
 2. Start once to generate `config.yml`, `worth.yml`, `jobs.yml`, and `ecostg.db`
 3. Edit configs, then **restart** (prefer restart over `/reload` for Paper/Purpur plugins)
 
@@ -149,6 +149,26 @@ currency-symbol: "$"
 
 menu:
   main-letters: "EcoSTG"
+
+features:
+  economy: true          # false also disables auction/sell/pay/balance/moneytop/jobs
+  auction: true
+  sell: true
+  pay: true
+  balance: true
+  moneytop: true
+  jobs: true
+  homes: true
+  tpa: true
+  rtp: true
+  friends: true
+  stats: true
+  leaderboards: true
+  enderchest: true
+  sit-lay: true
+  settings: true
+  combat: true
+  gamemode: true
 
 homes:
   max: 3

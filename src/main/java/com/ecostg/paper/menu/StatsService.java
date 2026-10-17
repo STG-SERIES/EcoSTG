@@ -153,6 +153,9 @@ public final class StatsService {
 
     public List<LeaderboardEntry> top(LeaderboardType type, int limit) {
         if (type == LeaderboardType.MONEY) {
+            if (!plugin.features().economy()) {
+                return List.of();
+            }
             List<LeaderboardEntry> out = new ArrayList<>();
             plugin.economy().topBalances(limit).forEach(e ->
                     out.add(new LeaderboardEntry(e.uuid(), e.name(), Math.round(e.balance()))));

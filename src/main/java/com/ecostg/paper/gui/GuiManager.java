@@ -59,11 +59,17 @@ public final class GuiManager {
     }
 
     public boolean canUseEconomy(Player player) {
+        if (!plugin.features().economy()) {
+            return false;
+        }
         plugin.economy().ensurePlayer(player);
         return plugin.economy().isEconomyEnabled(player.getUniqueId());
     }
 
     public void openPay(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().pay())) {
+            return;
+        }
         if (!canUseEconomy(player)) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
             return;
@@ -94,6 +100,9 @@ public final class GuiManager {
     }
 
     public void openMoneyTop(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().moneytop())) {
+            return;
+        }
         if (!canUseEconomy(player)) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
             return;
@@ -120,6 +129,9 @@ public final class GuiManager {
     }
 
     public void openAuction(Player player, int page, String search) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().auction())) {
+            return;
+        }
         if (!canUseEconomy(player)) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
             return;
@@ -200,6 +212,9 @@ public final class GuiManager {
 
     /** List items on the AH: drop items in, click lime pane — prices from worth.yml (no custom prices). */
     public void openSell(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().sell())) {
+            return;
+        }
         if (!canUseEconomy(player)) {
             Messages.send(plugin, player, plugin.getConfig().getString("messages.economy-disabled", ""));
             return;
@@ -319,6 +334,9 @@ public final class GuiManager {
     }
 
     public void openJobs(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().jobs())) {
+            return;
+        }
         if (!plugin.settings().get(player.getUniqueId()).jobsEnabled()) {
             Messages.send(plugin, player, "<red>You disabled Jobs in Settings.</red>");
             return;
@@ -359,6 +377,9 @@ public final class GuiManager {
     }
 
     public void openJobSell(Player player) {
+        if (plugin.features().denyIfDisabled(player, plugin.features().jobs())) {
+            return;
+        }
         if (!plugin.settings().get(player.getUniqueId()).jobsEnabled()) {
             Messages.send(plugin, player, "<red>You disabled Jobs in Settings.</red>");
             return;

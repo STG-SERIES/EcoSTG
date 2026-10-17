@@ -37,36 +37,75 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
     public boolean execute(CommandSender sender, String label, String[] args) {
         String name = resolveName(label);
         return switch (name) {
-            case "pay" -> requirePlayer(sender, p -> handlePay(p, args));
-            case "shop", "ah", "auction" -> requirePlayer(sender, p -> handleAuction(p, args));
-            case "sell" -> requirePlayer(sender, p -> plugin.guis().openSell(p));
+            case "pay" -> requireFeature(sender, plugin.features().pay(),
+                    p -> handlePay(p, args));
+            case "shop", "ah", "auction" -> requireFeature(sender, plugin.features().auction(),
+                    p -> handleAuction(p, args));
+            case "sell" -> requireFeature(sender, plugin.features().sell(),
+                    p -> plugin.guis().openSell(p));
             case "menu", "ecostgmenu" -> requirePlayer(sender, p -> plugin.menus().openMain(p));
-            case "tpa" -> requirePlayer(sender, p -> handleTpa(p, args, TpaService.Type.TPA));
-            case "tpahere", "tphere" -> requirePlayer(sender, p -> handleTpa(p, args, TpaService.Type.TPA_HERE));
-            case "tpaccept", "tpyes" -> requirePlayer(sender, p -> plugin.tpa().accept(p));
-            case "tpdeny", "tpno" -> requirePlayer(sender, p -> plugin.tpa().deny(p));
-            case "rtp" -> requirePlayer(sender, p -> plugin.rtp().rtp(p));
-            case "stats" -> requirePlayer(sender, p -> handleStats(p, args));
-            case "home", "homes" -> requirePlayer(sender, p -> handleHome(p, args));
-            case "sethome" -> requirePlayer(sender, p -> handleSetHome(p, args));
-            case "delhome" -> requirePlayer(sender, p -> handleDelHome(p, args));
-            case "friend", "friends" -> requirePlayer(sender, p -> handleFriend(p, args));
-            case "settings" -> requirePlayer(sender, p -> plugin.menus().openSettings(p));
-            case "enderchest", "ec", "ender" -> requirePlayer(sender, p -> plugin.menus().openEnderChest(p));
-            case "leaderboard", "leaderboards", "lb" -> requirePlayer(sender, p -> handleLeaderboard(p, args));
-            case "bal", "balance", "money" -> requirePlayer(sender, p -> handleBalance(p, args));
-            case "moneytop" -> requirePlayer(sender, p -> plugin.guis().openMoneyTop(p));
-            case "job" -> requirePlayer(sender, p -> plugin.guis().openJobs(p));
-            case "jobsell" -> requirePlayer(sender, p -> plugin.guis().openJobSell(p));
-            case "jobinfo" -> requirePlayer(sender, this::handleJobInfo);
-            case "activejobs" -> requirePlayer(sender, this::handleActiveJobs);
+            case "tpa" -> requireFeature(sender, plugin.features().tpa(),
+                    p -> handleTpa(p, args, TpaService.Type.TPA));
+            case "tpahere", "tphere" -> requireFeature(sender, plugin.features().tpa(),
+                    p -> handleTpa(p, args, TpaService.Type.TPA_HERE));
+            case "tpaccept", "tpyes" -> requireFeature(sender, plugin.features().tpa(),
+                    p -> plugin.tpa().accept(p));
+            case "tpdeny", "tpno" -> requireFeature(sender, plugin.features().tpa(),
+                    p -> plugin.tpa().deny(p));
+            case "rtp" -> requireFeature(sender, plugin.features().rtp(),
+                    p -> plugin.rtp().rtp(p));
+            case "stats" -> requireFeature(sender, plugin.features().stats(),
+                    p -> handleStats(p, args));
+            case "home", "homes" -> requireFeature(sender, plugin.features().homes(),
+                    p -> handleHome(p, args));
+            case "sethome" -> requireFeature(sender, plugin.features().homes(),
+                    p -> handleSetHome(p, args));
+            case "delhome" -> requireFeature(sender, plugin.features().homes(),
+                    p -> handleDelHome(p, args));
+            case "friend", "friends" -> requireFeature(sender, plugin.features().friends(),
+                    p -> handleFriend(p, args));
+            case "settings" -> requireFeature(sender, plugin.features().settings(),
+                    p -> plugin.menus().openSettings(p));
+            case "enderchest", "ec", "ender" -> requireFeature(sender, plugin.features().enderchest(),
+                    p -> plugin.menus().openEnderChest(p));
+            case "leaderboard", "leaderboards", "lb" -> requireFeature(sender, plugin.features().leaderboards(),
+                    p -> handleLeaderboard(p, args));
+            case "bal", "balance", "money" -> requireFeature(sender, plugin.features().balance(),
+                    p -> handleBalance(p, args));
+            case "moneytop" -> requireFeature(sender, plugin.features().moneytop(),
+                    p -> plugin.guis().openMoneyTop(p));
+            case "job" -> requireFeature(sender, plugin.features().jobs(),
+                    p -> plugin.guis().openJobs(p));
+            case "jobsell" -> requireFeature(sender, plugin.features().jobs(),
+                    p -> plugin.guis().openJobSell(p));
+            case "jobinfo" -> requireFeature(sender, plugin.features().jobs(), this::handleJobInfo);
+            case "activejobs" -> requireFeature(sender, plugin.features().jobs(), this::handleActiveJobs);
             case "ecostg" -> handleEcoStg(sender, args);
-            case "job-timer-reset" -> handleTimerReset(sender, args);
-            case "ecoset" -> handleEcoSet(sender, args);
-            case "ecogive" -> handleEcoGive(sender, args);
-            case "jobcancel" -> handleJobCancel(sender, args);
+            case "job-timer-reset" -> featureOrFalse(sender, plugin.features().jobs(),
+                    () -> handleTimerReset(sender, args));
+            case "ecoset" -> featureOrFalse(sender, plugin.features().economy(),
+                    () -> handleEcoSet(sender, args));
+            case "ecogive" -> featureOrFalse(sender, plugin.features().economy(),
+                    () -> handleEcoGive(sender, args));
+            case "jobcancel" -> featureOrFalse(sender, plugin.features().jobs(),
+                    () -> handleJobCancel(sender, args));
             default -> false;
         };
+    }
+
+    private boolean requireFeature(CommandSender sender, boolean enabled, java.util.function.Consumer<Player> action) {
+        if (plugin.features().denyIfDisabled(sender, enabled)) {
+            return true;
+        }
+        return requirePlayer(sender, action);
+    }
+
+    private boolean featureOrFalse(CommandSender sender, boolean enabled, Runnable action) {
+        if (plugin.features().denyIfDisabled(sender, enabled)) {
+            return true;
+        }
+        action.run();
+        return true;
     }
 
     private static String resolveName(String label) {
@@ -286,8 +325,16 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
         }
         StatsService.LeaderboardType type = parseBoard(args[0]);
         if (type == null) {
-            Messages.send(plugin, player, "<yellow>Usage: /leaderboard [money|playtime|kills|deaths|placed|broken|mobs]</yellow>");
+            if (plugin.features().economy()) {
+                Messages.send(plugin, player, "<yellow>Usage: /leaderboard [money|playtime|kills|deaths|placed|broken|mobs]</yellow>");
+            } else {
+                Messages.send(plugin, player, "<yellow>Usage: /leaderboard [playtime|kills|deaths|placed|broken|mobs]</yellow>");
+            }
             plugin.menus().openLeaderboards(player);
+            return;
+        }
+        if (type == StatsService.LeaderboardType.MONEY
+                && plugin.features().denyIfDisabled(player, plugin.features().economy())) {
             return;
         }
         plugin.menus().openLeaderboard(player, type);
@@ -669,7 +716,11 @@ public final class EcoCommands implements CommandExecutor, TabCompleter {
             }
         } else if ((name.equals("leaderboard") || name.equals("leaderboards") || name.equals("lb"))
                 && args.length == 1) {
-            for (String opt : List.of("money", "playtime", "kills", "deaths", "placed", "broken", "mobs")) {
+            List<String> opts = new ArrayList<>(List.of("playtime", "kills", "deaths", "placed", "broken", "mobs"));
+            if (plugin.features().economy()) {
+                opts.add(0, "money");
+            }
+            for (String opt : opts) {
                 if (opt.startsWith(args[0].toLowerCase(Locale.ROOT))) {
                     out.add(opt);
                 }

@@ -112,7 +112,7 @@ public final class SettingsService {
         } else {
             player.removePotionEffect(PotionEffectType.NIGHT_VISION);
         }
-        applyMoneyNametag(player, settings.moneyNametag());
+        applyMoneyNametag(player, plugin.features().economy() && settings.moneyNametag());
     }
 
     public void applyMoneyNametag(Player player, boolean enabled) {
@@ -124,7 +124,7 @@ public final class SettingsService {
         }
 
         Objective obj = board.getObjective("ecostg_bal");
-        if (!enabled) {
+        if (!enabled || !plugin.features().economy()) {
             if (obj != null) {
                 obj.getScore(player.getName()).resetScore();
             }
@@ -144,6 +144,10 @@ public final class SettingsService {
     }
 
     public void refreshMoneyNametag(Player player) {
+        if (!plugin.features().economy()) {
+            applyMoneyNametag(player, false);
+            return;
+        }
         PlayerSettings settings = get(player.getUniqueId());
         if (settings.moneyNametag()) {
             applyMoneyNametag(player, true);
@@ -152,6 +156,11 @@ public final class SettingsService {
 
     public void clearVisuals(Player player) {
         player.removePotionEffect(PotionEffectType.NIGHT_VISION);
+        applyMoneyNametag(player, false);
+    }
+
+    /** Strips money below-name display without touching night vision. */
+    public void clearMoneyNametagOnly(Player player) {
         applyMoneyNametag(player, false);
     }
 

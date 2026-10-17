@@ -1,14 +1,14 @@
 # EcoSTG for Paper 26.1.2
 
-**Plugin version:** `1.5.22`  
-**Jar:** `EcoSTG-1.5.22-paper26.1.2.jar`  
+**Plugin version:** `1.5.23`  
+**Jar:** `EcoSTG-1.5.23-paper26.1.2.jar`  
 **Paper API:** `26.1.2.build.74-stable`  
 **Java:** 25+
 
 ## Install
 
 1. Use a **Paper/Purpur 26.1.2** server (Java 25+)
-2. Put `EcoSTG-1.5.22-paper26.1.2.jar` in `plugins/`
+2. Put `EcoSTG-1.5.23-paper26.1.2.jar` in `plugins/`
 3. Restart the server
 
 Release notes: see `releases/` in this folder (same notes as the main repo).
